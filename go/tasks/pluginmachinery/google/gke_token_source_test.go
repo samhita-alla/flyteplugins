@@ -2,8 +2,11 @@ package google
 
 import (
 	"context"
+	"github.com/flyteorg/flytestdlib/atomic"
+	"github.com/golang/groupcache/singleflight"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
+	"sync"
 	"testing"
 	"time"
 )
@@ -16,7 +19,7 @@ func TestGetCachedToken(t *testing.T) {
 	}
 
 	t.Run("has no cached token", func(t *testing.T) {
-		ts := gkeTokenSource{}
+		ts := newGkeTokenSource()
 
 		_, ok := ts.getCachedToken(ctx, identity)
 
@@ -28,7 +31,7 @@ func TestGetCachedToken(t *testing.T) {
 			AccessToken: "secret",
 			Expiry:      time.Now().Add(time.Hour),
 		}
-		ts := gkeTokenSource{}
+		ts := newGkeTokenSource()
 
 		ts.tokens.Store(identity, &token)
 
@@ -44,7 +47,7 @@ func TestGetCachedToken(t *testing.T) {
 			AccessToken: "secret",
 			Expiry:      time.Now(),
 		}
-		ts := gkeTokenSource{}
+		ts := newGkeTokenSource()
 
 		ts.tokens.Store(identity, &token)
 
@@ -54,4 +57,14 @@ func TestGetCachedToken(t *testing.T) {
 		_, ok = ts.tokens.Load(identity)
 		assert.False(t, ok)
 	})
+}
+
+func newGkeTokenSource() gkeTokenSource {
+	deletion := atomic.NewBool(false)
+
+	return gkeTokenSource{
+		tokens:       &sync.Map{},
+		singleflight: &singleflight.Group{},
+		deletion:     &deletion,
+	}
 }
