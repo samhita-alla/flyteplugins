@@ -10,11 +10,15 @@ import (
 
 func TestGetCachedToken(t *testing.T) {
 	ctx := context.TODO()
+	identity := Identity{
+		K8sNamespace:      "flytesnacks-development",
+		K8sServiceAccount: "default",
+	}
 
 	t.Run("has no cached token", func(t *testing.T) {
-		ts := GkeTokenSource{}
+		ts := gkeTokenSource{}
 
-		_, ok := ts.getCachedToken(ctx, "flytesnacks-development", "default")
+		_, ok := ts.getCachedToken(ctx, identity)
 
 		assert.False(t, ok)
 	})
@@ -24,14 +28,11 @@ func TestGetCachedToken(t *testing.T) {
 			AccessToken: "secret",
 			Expiry:      time.Now().Add(time.Hour),
 		}
-		ts := GkeTokenSource{}
+		ts := gkeTokenSource{}
 
-		ts.tokens.Store(tokensKey{
-			k8sNamespace:      "flytesnacks-development",
-			k8sServiceAccount: "default",
-		}, &token)
+		ts.tokens.Store(identity, &token)
 
-		cached, ok := ts.getCachedToken(ctx, "flytesnacks-development", "default")
+		cached, ok := ts.getCachedToken(ctx, identity)
 
 		assert.True(t, ok)
 		assert.NotNil(t, cached)
@@ -43,18 +44,14 @@ func TestGetCachedToken(t *testing.T) {
 			AccessToken: "secret",
 			Expiry:      time.Now(),
 		}
-		ts := GkeTokenSource{}
-		cacheKey := tokensKey{
-			k8sNamespace:      "flytesnacks-development",
-			k8sServiceAccount: "default",
-		}
+		ts := gkeTokenSource{}
 
-		ts.tokens.Store(cacheKey, &token)
+		ts.tokens.Store(identity, &token)
 
-		_, ok := ts.getCachedToken(ctx, "flytesnacks-development", "default")
+		_, ok := ts.getCachedToken(ctx, identity)
 		assert.False(t, ok)
 
-		_, ok = ts.tokens.Load(cacheKey)
+		_, ok = ts.tokens.Load(identity)
 		assert.False(t, ok)
 	})
 }

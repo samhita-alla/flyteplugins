@@ -2,8 +2,6 @@ package google
 
 import "github.com/flyteorg/flytestdlib/config"
 
-//go:generate pflags GKETokenSourceConfig --default-var=defaultConfig
-
 type GKETokenSourceConfig struct {
 	// IdentityNamespace is workload identity namespace, e.g. [project_id].svc.id.goog
 	IdentityNamespace string `json:"identityNamespace" pflag:",Defines workload identity namespace, e.g. [project_id].svc.id.goog"`
@@ -28,5 +26,5 @@ type KubeClientConfig struct {
 	Burst int `json:"burst" pflag:"-,Max burst rate for throttle. 0 defaults to 10"`
 
 	// The maximum length of time to wait before giving up on a server request. A value of zero means no timeout.
-	Timeout config.Duration `json:"timeout" pflag:"-,Max duration allowed for every request to KubeAPI before giving up. 0 implies no timeout."`
+	Timeout config.Duration `json:"timeout" pflag:",Max duration allowed for every request to KubeAPI before giving up. 0 implies no timeout."`
 }

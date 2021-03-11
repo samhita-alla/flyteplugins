@@ -23,26 +23,17 @@ const (
 	workflowIdentityDocUrl         = "https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity"
 )
 
-type tokensKey struct {
-	k8sNamespace      string
-	k8sServiceAccount string
-}
-
-type GkeTokenSource struct {
+type gkeTokenSource struct {
 	kubeClient        kubernetes.Interface
-	tokens            sync.Map
-	singleflight      singleflight.Group
+	tokens            *sync.Map
+	singleflight      *singleflight.Group
 	identityNamespace string
 	scope             []string
-	deletion          atomic.Bool
+	deletion          *atomic.Bool
 }
 
-func (m *GkeTokenSource) getCachedToken(ctx context.Context, k8sNamespace string, k8sServiceAccount string) (*oauth2.Token, bool) {
-	key := tokensKey{
-		k8sNamespace:      k8sNamespace,
-		k8sServiceAccount: k8sServiceAccount,
-	}
-	v, ok := m.tokens.Load(key)
+func (m *gkeTokenSource) getCachedToken(ctx context.Context, identity Identity) (*oauth2.Token, bool) {
+	v, ok := m.tokens.Load(identity)
 
 	if !ok {
 		return nil, false
@@ -57,12 +48,12 @@ func (m *GkeTokenSource) getCachedToken(ctx context.Context, k8sNamespace string
 		// if token has expired, clean other expired tokens, otherwise, nobody will clean them
 		if m.deletion.CompareAndSwap(false, true) {
 			m.tokens.Range(func(rawKey, value interface{}) bool {
-				key := rawKey.(tokensKey)
+				identity := rawKey.(Identity)
 				token := value.(*oauth2.Token)
 
 				if hasExpired(token) {
-					logger.Infof(ctx, "Removed expired token for [%s/%s]", key.k8sNamespace, key.k8sServiceAccount)
-					m.tokens.Delete(key)
+					logger.Infof(ctx, "Removed expired token for [%s/%s]", identity.K8sNamespace, identity.K8sServiceAccount)
+					m.tokens.Delete(identity)
 				}
 
 				return true
@@ -79,9 +70,9 @@ func hasExpired(token *oauth2.Token) bool {
 	return token.Expiry.Round(0).Add(-defaultGracePeriod).Before(time.Now())
 }
 
-func (m *GkeTokenSource) getK8sServiceAccountToken(ctx context.Context, k8sNamespace string, k8sServiceAccount string) (string, error) {
-	serviceAccounts := m.kubeClient.CoreV1().ServiceAccounts(k8sNamespace)
-	createTokenResponse, err := serviceAccounts.CreateToken(ctx, k8sServiceAccount, &v1.TokenRequest{
+func (m *gkeTokenSource) getK8sServiceAccountToken(ctx context.Context, identity Identity) (string, error) {
+	serviceAccounts := m.kubeClient.CoreV1().ServiceAccounts(identity.K8sNamespace)
+	createTokenResponse, err := serviceAccounts.CreateToken(ctx, identity.K8sServiceAccount, &v1.TokenRequest{
 		Spec: v1.TokenRequestSpec{
 			Audiences: []string{
 				m.identityNamespace,
@@ -96,10 +87,10 @@ func (m *GkeTokenSource) getK8sServiceAccountToken(ctx context.Context, k8sNames
 	return createTokenResponse.Status.Token, nil
 }
 
-func (m *GkeTokenSource) getGcpServiceAccount(ctx context.Context, k8sNamespace string, k8sServiceAccount string) (string, error) {
-	serviceAccounts := m.kubeClient.CoreV1().ServiceAccounts(k8sNamespace)
+func (m *gkeTokenSource) getGcpServiceAccount(ctx context.Context, identity Identity) (string, error) {
+	serviceAccounts := m.kubeClient.CoreV1().ServiceAccounts(identity.K8sNamespace)
 
-	serviceAccountResponse, err := serviceAccounts.Get(ctx, k8sServiceAccount, metav1.GetOptions{})
+	serviceAccountResponse, err := serviceAccounts.Get(ctx, identity.K8sServiceAccount, metav1.GetOptions{})
 
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create k8s service account token")
@@ -114,29 +105,29 @@ func (m *GkeTokenSource) getGcpServiceAccount(ctx context.Context, k8sNamespace 
 	return "", errors.Errorf(
 		"[%v] annotation doesn't exist on k8s service account [%v/%v], read more at %v",
 		gcpServiceAccountAnnotationKey,
-		k8sNamespace,
-		k8sServiceAccount,
+		identity.K8sNamespace,
+		identity.K8sServiceAccount,
 		workflowIdentityDocUrl)
 }
 
-func (m *GkeTokenSource) GetTokenSource(ctx context.Context, k8sNamespace string, k8sServiceAccount string) (oauth2.TokenSource, error) {
-	if k8sServiceAccount == "" {
-		k8sServiceAccount = "default"
+func (m gkeTokenSource) GetTokenSource(ctx context.Context, identity Identity) (oauth2.TokenSource, error) {
+	if identity.K8sServiceAccount == "" {
+		identity.K8sServiceAccount = "default"
 	}
 
-	if cachedToken, ok := m.getCachedToken(ctx, k8sNamespace, k8sServiceAccount); ok {
+	if cachedToken, ok := m.getCachedToken(ctx, identity); ok {
 		return oauth2.StaticTokenSource(cachedToken), nil
 	}
 
 	// when tokens expire, of we hit a miss, singleflight will do a most one request per SA
-	value, err := m.singleflight.Do(k8sNamespace+"/"+k8sServiceAccount, func() (interface{}, error) {
-		k8sServiceAccountToken, err := m.getK8sServiceAccountToken(ctx, k8sNamespace, k8sServiceAccount)
+	value, err := m.singleflight.Do(identity.K8sNamespace+"/"+identity.K8sServiceAccount, func() (interface{}, error) {
+		k8sServiceAccountToken, err := m.getK8sServiceAccountToken(ctx, identity)
 
 		if err != nil {
 			return nil, err
 		}
 
-		gcpServiceAccount, err := m.getGcpServiceAccount(ctx, k8sNamespace, k8sServiceAccount)
+		gcpServiceAccount, err := m.getGcpServiceAccount(ctx, identity)
 
 		token, err := ExchangeToken(ctx, StsRequest{
 			SubjectToken:      k8sServiceAccountToken,
@@ -149,10 +140,7 @@ func (m *GkeTokenSource) GetTokenSource(ctx context.Context, k8sNamespace string
 			return nil, err
 		}
 
-		m.tokens.Store(tokensKey{
-			k8sNamespace:      k8sNamespace,
-			k8sServiceAccount: k8sServiceAccount,
-		}, token)
+		m.tokens.Store(identity, token)
 
 		return token, nil
 	})
@@ -191,19 +179,21 @@ func getKubeClient(kubeConfigPath string, kubeConfig KubeClientConfig) (*kuberne
 	return kubeClient, err
 }
 
-func NewGkeTokenSource(config GKETokenSourceConfig) (GkeTokenSource, error) {
+func NewGKETokenSource(config GKETokenSourceConfig) (TokenSource, error) {
 	kubeClient, err := getKubeClient(config.KubeConfigPath, config.KubeConfig)
 
 	if err != nil {
-		return GkeTokenSource{}, err
+		return gkeTokenSource{}, err
 	}
 
-	return GkeTokenSource{
+	deletion := atomic.NewBool(false)
+
+	return gkeTokenSource{
 		kubeClient:        kubeClient,
-		tokens:            sync.Map{},
+		tokens:            &sync.Map{},
 		identityNamespace: config.IdentityNamespace,
 		scope:             config.Scope,
-		singleflight:      singleflight.Group{},
-		deletion:          atomic.NewBool(false),
+		singleflight:      &singleflight.Group{},
+		deletion:          &deletion,
 	}, nil
 }

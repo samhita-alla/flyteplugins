@@ -35,7 +35,7 @@ const (
 type Plugin struct {
 	metricScope    promutils.Scope
 	cfg            *Config
-	gkeTokenSource *google.GkeTokenSource
+	googleTokenSource google.TokenSource
 }
 
 type ResourceWrapper struct {
@@ -279,7 +279,10 @@ func (p Plugin) getTokenSource(ctx context.Context, k8sNamespace string, k8sServ
 		return googleoauth2.DefaultTokenSource(ctx)
 	}
 
-	tokenSource, err := p.gkeTokenSource.GetTokenSource(ctx, k8sNamespace, k8sServiceAccount)
+	tokenSource, err := p.googleTokenSource.GetTokenSource(ctx, google.Identity{
+		K8sNamespace:      k8sNamespace,
+		K8sServiceAccount: k8sServiceAccount,
+	})
 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to exchange oidc token for access token")
@@ -318,11 +321,11 @@ func newBigQueryClient(ctx context.Context, tokenSource oauth2.TokenSource) (*bi
 }
 
 func NewPlugin(cfg *Config, metricScope promutils.Scope) (*Plugin, error) {
-	var gkeTokenSource google.GkeTokenSource
+	var googleTokenSource google.TokenSource
 	var err error
 
 	if cfg.TokenSource == "gke" {
-		gkeTokenSource, err = google.NewGkeTokenSource(cfg.GKETokenSource)
+		googleTokenSource, err = google.NewGKETokenSource(cfg.GKETokenSource)
 
 		if err != nil {
 			return nil, pluginErrors.Wrapf(pluginErrors.PluginInitializationFailed, err, "failed to get kube client")
@@ -334,9 +337,9 @@ func NewPlugin(cfg *Config, metricScope promutils.Scope) (*Plugin, error) {
 	}
 
 	return &Plugin{
-		metricScope:    metricScope,
-		cfg:            cfg,
-		gkeTokenSource: &gkeTokenSource,
+		metricScope:       metricScope,
+		cfg:               cfg,
+		googleTokenSource: googleTokenSource,
 	}, nil
 }
 
