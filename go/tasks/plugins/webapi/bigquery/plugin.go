@@ -8,7 +8,6 @@ import (
 	structpb "github.com/golang/protobuf/ptypes/struct"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
-	googleoauth2 "golang.org/x/oauth2/google"
 	"google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/googleapi"
 	"time"
@@ -33,8 +32,8 @@ const (
 )
 
 type Plugin struct {
-	metricScope    promutils.Scope
-	cfg            *Config
+	metricScope       promutils.Scope
+	cfg               *Config
 	googleTokenSource google.TokenSource
 }
 
@@ -84,7 +83,8 @@ func (p Plugin) createImpl(ctx context.Context, taskCtx webapi.TaskExecutionCont
 
 	namespace := taskCtx.TaskExecutionMetadata().GetNamespace()
 	k8sServiceAccount := taskCtx.TaskExecutionMetadata().GetK8sServiceAccount()
-	tokenSource, err := p.getTokenSource(ctx, namespace, k8sServiceAccount)
+	identity := google.Identity{K8sNamespace: namespace, K8sServiceAccount: k8sServiceAccount}
+	tokenSource, err := p.googleTokenSource.GetTokenSource(ctx, identity)
 
 	if err != nil {
 		return nil, nil, pluginErrors.Errorf(pluginErrors.TaskFailedUnknownError, "unable to get token source [%v]", err.Error())
@@ -178,7 +178,10 @@ func (p Plugin) Get(ctx context.Context, taskCtx webapi.GetContext) (latest weba
 func (p Plugin) getImpl(ctx context.Context, taskCtx webapi.GetContext) (wrapper *ResourceWrapper, err error) {
 	resourceMeta := taskCtx.ResourceMeta().(*ResourceMetaWrapper)
 
-	tokenSource, err := p.getTokenSource(ctx, resourceMeta.Namespace, resourceMeta.K8sServiceAccount)
+	tokenSource, err := p.googleTokenSource.GetTokenSource(ctx, google.Identity{
+		K8sNamespace:      resourceMeta.Namespace,
+		K8sServiceAccount: resourceMeta.K8sServiceAccount,
+	})
 
 	if err != nil {
 		return nil, pluginErrors.Errorf(pluginErrors.TaskFailedUnknownError, "unable to get token source [%v]", err.Error())
@@ -208,7 +211,10 @@ func (p Plugin) Delete(ctx context.Context, taskCtx webapi.DeleteContext) error 
 	}
 
 	resourceMeta := taskCtx.ResourceMeta().(*ResourceMetaWrapper)
-	tokenSource, err := p.getTokenSource(ctx, resourceMeta.Namespace, resourceMeta.K8sServiceAccount)
+	tokenSource, err := p.googleTokenSource.GetTokenSource(ctx, google.Identity{
+		K8sNamespace:      resourceMeta.Namespace,
+		K8sServiceAccount: resourceMeta.K8sServiceAccount,
+	})
 
 	if err != nil {
 		return pluginErrors.Errorf(pluginErrors.TaskFailedUnknownError, "unable to get token source [%v]", err.Error())
@@ -274,23 +280,6 @@ func (p Plugin) Status(_ context.Context, tCtx webapi.StatusContext) (phase core
 	return core.PhaseInfoUndefined, pluginErrors.Errorf(pluginsCore.SystemErrorCode, "unknown execution phase [%v].", resource.Status.State)
 }
 
-func (p Plugin) getTokenSource(ctx context.Context, k8sNamespace string, k8sServiceAccount string) (oauth2.TokenSource, error) {
-	if p.cfg.TokenSource == "default" {
-		return googleoauth2.DefaultTokenSource(ctx)
-	}
-
-	tokenSource, err := p.googleTokenSource.GetTokenSource(ctx, google.Identity{
-		K8sNamespace:      k8sNamespace,
-		K8sServiceAccount: k8sServiceAccount,
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to exchange oidc token for access token")
-	}
-
-	return tokenSource, nil
-}
-
 func createTaskInfo(resourceMeta *ResourceMetaWrapper) *core.TaskInfo {
 	timeNow := time.Now()
 
@@ -321,19 +310,10 @@ func newBigQueryClient(ctx context.Context, tokenSource oauth2.TokenSource) (*bi
 }
 
 func NewPlugin(cfg *Config, metricScope promutils.Scope) (*Plugin, error) {
-	var googleTokenSource google.TokenSource
-	var err error
+	googleTokenSource, err := google.NewTokenSource(cfg.GoogleTokenSource)
 
-	if cfg.TokenSource == "gke" {
-		googleTokenSource, err = google.NewGKETokenSource(cfg.GKETokenSource)
-
-		if err != nil {
-			return nil, pluginErrors.Wrapf(pluginErrors.PluginInitializationFailed, err, "failed to get kube client")
-		}
-	} else if cfg.TokenSource == "default" {
-
-	} else {
-		return nil, pluginErrors.Wrapf(pluginErrors.PluginInitializationFailed, err, "unknown token source: %s", cfg.TokenSource)
+	if err != nil {
+		return nil, pluginErrors.Wrapf(pluginErrors.PluginInitializationFailed, err, "failed to get google token source")
 	}
 
 	return &Plugin{

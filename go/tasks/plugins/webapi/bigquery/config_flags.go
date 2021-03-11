@@ -49,8 +49,10 @@ func (cfg Config) GetPFlagSet(prefix string) *pflag.FlagSet {
 	cmdFlags.String(fmt.Sprintf("%v%v", prefix, "webApi.caching.resyncInterval"), defaultConfig.WebAPI.Caching.ResyncInterval.String(), "Defines the sync interval.")
 	cmdFlags.Int(fmt.Sprintf("%v%v", prefix, "webApi.caching.workers"), defaultConfig.WebAPI.Caching.Workers, "Defines the number of workers to start up to process items.")
 	cmdFlags.Int(fmt.Sprintf("%v%v", prefix, "webApi.caching.maxSystemFailures"), defaultConfig.WebAPI.Caching.MaxSystemFailures, "Defines the number of failures to fetch a task before failing the task.")
-	cmdFlags.String(fmt.Sprintf("%v%v", prefix, "gkeTokenSource.identityNamespace"), defaultConfig.GKETokenSource.IdentityNamespace, "Defines workload identity namespace,  e.g. [project_id].svc.id.goog")
-	cmdFlags.StringSlice(fmt.Sprintf("%v%v", prefix, "gkeTokenSource.scope"), []string{}, "Defines OAuth 2.0 scopes to include on the resulting access token")
-	cmdFlags.String(fmt.Sprintf("%v%v", prefix, "gkeTokenSource.kubeConfig"), defaultConfig.GKETokenSource.KubeConfigPath, "Path to Kubernetes client config file.")
+	cmdFlags.String(fmt.Sprintf("%v%v", prefix, "googleTokenSource.type"), defaultConfig.GoogleTokenSource.Type, "Defines type of TokenSource,  possible values are 'default' or 'gke'")
+	cmdFlags.String(fmt.Sprintf("%v%v", prefix, "googleTokenSource.identityNamespace"), defaultConfig.GoogleTokenSource.IdentityNamespace, "Defines workload identity namespace,  e.g. [project_id].svc.id.goog")
+	cmdFlags.StringSlice(fmt.Sprintf("%v%v", prefix, "googleTokenSource.scope"), []string{}, "Defines OAuth 2.0 scopes to include on the resulting access token")
+	cmdFlags.String(fmt.Sprintf("%v%v", prefix, "googleTokenSource.kubeConfig"), defaultConfig.GoogleTokenSource.KubeConfigPath, "Path to Kubernetes client config file.")
+	cmdFlags.String(fmt.Sprintf("%v%v", prefix, "googleTokenSource.kubeClientConfig.timeout"), defaultConfig.GoogleTokenSource.KubeConfig.Timeout.String(), "Max duration allowed for every request to KubeAPI before giving up. 0 implies no timeout.")
 	return cmdFlags
 }

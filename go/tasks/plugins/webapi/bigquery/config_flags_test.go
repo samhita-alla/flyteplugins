@@ -275,11 +275,11 @@ func TestConfig_SetFlags(t *testing.T) {
 			}
 		})
 	})
-	t.Run("Test_gkeTokenSource.identityNamespace", func(t *testing.T) {
+	t.Run("Test_googleTokenSource.type", func(t *testing.T) {
 		t.Run("DefaultValue", func(t *testing.T) {
 			// Test that default value is set properly
-			if vString, err := cmdFlags.GetString("gkeTokenSource.identityNamespace"); err == nil {
-				assert.Equal(t, string(defaultConfig.GKETokenSource.IdentityNamespace), vString)
+			if vString, err := cmdFlags.GetString("googleTokenSource.type"); err == nil {
+				assert.Equal(t, string(defaultConfig.GoogleTokenSource.Type), vString)
 			} else {
 				assert.FailNow(t, err.Error())
 			}
@@ -288,19 +288,41 @@ func TestConfig_SetFlags(t *testing.T) {
 		t.Run("Override", func(t *testing.T) {
 			testValue := "1"
 
-			cmdFlags.Set("gkeTokenSource.identityNamespace", testValue)
-			if vString, err := cmdFlags.GetString("gkeTokenSource.identityNamespace"); err == nil {
-				testDecodeJson_Config(t, fmt.Sprintf("%v", vString), &actual.GKETokenSource.IdentityNamespace)
+			cmdFlags.Set("googleTokenSource.type", testValue)
+			if vString, err := cmdFlags.GetString("googleTokenSource.type"); err == nil {
+				testDecodeJson_Config(t, fmt.Sprintf("%v", vString), &actual.GoogleTokenSource.Type)
 
 			} else {
 				assert.FailNow(t, err.Error())
 			}
 		})
 	})
-	t.Run("Test_gkeTokenSource.scope", func(t *testing.T) {
+	t.Run("Test_googleTokenSource.identityNamespace", func(t *testing.T) {
 		t.Run("DefaultValue", func(t *testing.T) {
 			// Test that default value is set properly
-			if vStringSlice, err := cmdFlags.GetStringSlice("gkeTokenSource.scope"); err == nil {
+			if vString, err := cmdFlags.GetString("googleTokenSource.identityNamespace"); err == nil {
+				assert.Equal(t, string(defaultConfig.GoogleTokenSource.IdentityNamespace), vString)
+			} else {
+				assert.FailNow(t, err.Error())
+			}
+		})
+
+		t.Run("Override", func(t *testing.T) {
+			testValue := "1"
+
+			cmdFlags.Set("googleTokenSource.identityNamespace", testValue)
+			if vString, err := cmdFlags.GetString("googleTokenSource.identityNamespace"); err == nil {
+				testDecodeJson_Config(t, fmt.Sprintf("%v", vString), &actual.GoogleTokenSource.IdentityNamespace)
+
+			} else {
+				assert.FailNow(t, err.Error())
+			}
+		})
+	})
+	t.Run("Test_googleTokenSource.scope", func(t *testing.T) {
+		t.Run("DefaultValue", func(t *testing.T) {
+			// Test that default value is set properly
+			if vStringSlice, err := cmdFlags.GetStringSlice("googleTokenSource.scope"); err == nil {
 				assert.Equal(t, []string([]string{}), vStringSlice)
 			} else {
 				assert.FailNow(t, err.Error())
@@ -310,20 +332,20 @@ func TestConfig_SetFlags(t *testing.T) {
 		t.Run("Override", func(t *testing.T) {
 			testValue := join_Config("1,1", ",")
 
-			cmdFlags.Set("gkeTokenSource.scope", testValue)
-			if vStringSlice, err := cmdFlags.GetStringSlice("gkeTokenSource.scope"); err == nil {
-				testDecodeSlice_Config(t, join_Config(vStringSlice, ","), &actual.GKETokenSource.Scope)
+			cmdFlags.Set("googleTokenSource.scope", testValue)
+			if vStringSlice, err := cmdFlags.GetStringSlice("googleTokenSource.scope"); err == nil {
+				testDecodeSlice_Config(t, join_Config(vStringSlice, ","), &actual.GoogleTokenSource.Scope)
 
 			} else {
 				assert.FailNow(t, err.Error())
 			}
 		})
 	})
-	t.Run("Test_gkeTokenSource.kubeConfig", func(t *testing.T) {
+	t.Run("Test_googleTokenSource.kubeConfig", func(t *testing.T) {
 		t.Run("DefaultValue", func(t *testing.T) {
 			// Test that default value is set properly
-			if vString, err := cmdFlags.GetString("gkeTokenSource.kubeConfig"); err == nil {
-				assert.Equal(t, string(defaultConfig.GKETokenSource.KubeConfigPath), vString)
+			if vString, err := cmdFlags.GetString("googleTokenSource.kubeConfig"); err == nil {
+				assert.Equal(t, string(defaultConfig.GoogleTokenSource.KubeConfigPath), vString)
 			} else {
 				assert.FailNow(t, err.Error())
 			}
@@ -332,9 +354,31 @@ func TestConfig_SetFlags(t *testing.T) {
 		t.Run("Override", func(t *testing.T) {
 			testValue := "1"
 
-			cmdFlags.Set("gkeTokenSource.kubeConfig", testValue)
-			if vString, err := cmdFlags.GetString("gkeTokenSource.kubeConfig"); err == nil {
-				testDecodeJson_Config(t, fmt.Sprintf("%v", vString), &actual.GKETokenSource.KubeConfigPath)
+			cmdFlags.Set("googleTokenSource.kubeConfig", testValue)
+			if vString, err := cmdFlags.GetString("googleTokenSource.kubeConfig"); err == nil {
+				testDecodeJson_Config(t, fmt.Sprintf("%v", vString), &actual.GoogleTokenSource.KubeConfigPath)
+
+			} else {
+				assert.FailNow(t, err.Error())
+			}
+		})
+	})
+	t.Run("Test_googleTokenSource.kubeClientConfig.timeout", func(t *testing.T) {
+		t.Run("DefaultValue", func(t *testing.T) {
+			// Test that default value is set properly
+			if vString, err := cmdFlags.GetString("googleTokenSource.kubeClientConfig.timeout"); err == nil {
+				assert.Equal(t, string(defaultConfig.GoogleTokenSource.KubeConfig.Timeout.String()), vString)
+			} else {
+				assert.FailNow(t, err.Error())
+			}
+		})
+
+		t.Run("Override", func(t *testing.T) {
+			testValue := defaultConfig.GoogleTokenSource.KubeConfig.Timeout.String()
+
+			cmdFlags.Set("googleTokenSource.kubeClientConfig.timeout", testValue)
+			if vString, err := cmdFlags.GetString("googleTokenSource.kubeClientConfig.timeout"); err == nil {
+				testDecodeJson_Config(t, fmt.Sprintf("%v", vString), &actual.GoogleTokenSource.KubeConfig.Timeout)
 
 			} else {
 				assert.FailNow(t, err.Error())

@@ -42,14 +42,7 @@ var (
 				Value: 50,
 			},
 		},
-		TokenSource: "default",
-		GKETokenSource: google.GKETokenSourceConfig{
-			KubeConfig: google.KubeClientConfig{
-				QPS:     5,
-				Burst:   10,
-				Timeout: config.Duration{Duration: 0},
-			},
-		},
+		GoogleTokenSource: google.GetDefaultConfig(),
 	}
 
 	configSection = pluginsConfig.MustRegisterSubSection("bigquery", &defaultConfig)
@@ -58,8 +51,7 @@ var (
 type Config struct {
 	WebAPI              webapi.PluginConfig          `json:"webApi" pflag:",Defines config for the base WebAPI plugin."`
 	ResourceConstraints core.ResourceConstraintsSpec `json:"resourceConstraints" pflag:"-,Defines resource constraints on how many executions to be created per project/overall at any given time."`
-	TokenSource         string                       `json:"tokenSource" pflag:",Defines token source: default or GKE"`
-	GKETokenSource      google.GKETokenSourceConfig  `json:"gkeTokenSource" pflag:",Defines GKE token source"`
+	GoogleTokenSource   google.TokenSourceConfig     `json:"googleTokenSource" pflag:",Defines Google token source"`
 }
 
 func GetConfig() *Config {

@@ -179,7 +179,7 @@ func getKubeClient(kubeConfigPath string, kubeConfig KubeClientConfig) (*kuberne
 	return kubeClient, err
 }
 
-func NewGKETokenSource(config GKETokenSourceConfig) (TokenSource, error) {
+func NewGKETokenSource(config TokenSourceConfig) (TokenSource, error) {
 	kubeClient, err := getKubeClient(config.KubeConfigPath, config.KubeConfig)
 
 	if err != nil {
