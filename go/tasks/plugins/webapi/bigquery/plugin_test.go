@@ -36,12 +36,11 @@ func TestCreateTaskInfo(t *testing.T) {
 
 		taskInfo := createTaskInfo(&resourceMeta)
 
-		assert.Equal(t, []flyteIdlCore.TaskLog{
-			{
-				Uri:  "https://console.cloud.google.com/bigquery?project=flyte-test&j=bq:EU:my-job-id&page=queryresults",
-				Name: "BigQuery Console",
-			},
-		}, taskInfo.Logs)
+		assert.Equal(t, 1, len(taskInfo.Logs))
+		assert.Equal(t, flyteIdlCore.TaskLog{
+			Uri:  "https://console.cloud.google.com/bigquery?project=flyte-test&j=bq:EU:my-job-id&page=queryresults",
+			Name: "BigQuery Console",
+		}, *taskInfo.Logs[0])
 	})
 }
 
