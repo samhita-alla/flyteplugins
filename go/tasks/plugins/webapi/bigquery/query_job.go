@@ -142,7 +142,7 @@ type QueryJobConfig struct {
 	WriteDisposition string `json:"writeDisposition,omitempty"`
 }
 
-func unmarshalBigQueryQueryConfig(structObj *structpb.Struct) (*QueryJobConfig, error) {
+func unmarshalQueryJobConfig(structObj *structpb.Struct) (*QueryJobConfig, error) {
 	marshaller := jsonpb.Marshaler{}
 	obj := QueryJobConfig{}
 
@@ -155,7 +155,6 @@ func unmarshalBigQueryQueryConfig(structObj *structpb.Struct) (*QueryJobConfig, 
 }
 
 func getJobConfigurationQuery(custom *QueryJobConfig, inputs *flyteIdlCore.LiteralMap) (*bigquery.JobConfigurationQuery, error) {
-
 	queryParameters, err := getQueryParameters(inputs.Literals)
 
 	if err != nil {
@@ -209,6 +208,8 @@ func getQueryParameters(literalMap map[string]*flyteIdlCore.Literal) ([]*bigquer
 	return queryParameters, nil
 }
 
+// read more about parameterized queries: https://cloud.google.com/bigquery/docs/parameterized-queries
+
 func getQueryParameter(literal *flyteIdlCore.Literal) (*bigquery.QueryParameterType, *bigquery.QueryParameterValue, error) {
 	if scalar := literal.GetScalar(); scalar != nil {
 		if primitive := scalar.GetPrimitive(); primitive != nil {
@@ -224,10 +225,31 @@ func getQueryParameter(literal *flyteIdlCore.Literal) (*bigquery.QueryParameterT
 			case *flyteIdlCore.Primitive_StringValue:
 				stringType := bigquery.QueryParameterType{Type: "STRING"}
 				stringValue := bigquery.QueryParameterValue{
-					Value: primitive.String(),
+					Value: primitive.GetStringValue(),
 				}
 
 				return &stringType, &stringValue, nil
+
+			case *flyteIdlCore.Primitive_FloatValue:
+				floatType := bigquery.QueryParameterType{Type: "FLOAT64"}
+				floatValue := bigquery.QueryParameterValue{
+					Value: strconv.FormatFloat(primitive.GetFloatValue(), 'f', -1, 64),
+				}
+
+				return &floatType, &floatValue, nil
+
+			case *flyteIdlCore.Primitive_Boolean:
+				boolType := bigquery.QueryParameterType{Type: "BOOL"}
+
+				if primitive.GetBoolean() {
+					return &boolType, &bigquery.QueryParameterValue{
+						Value: "TRUE",
+					}, nil
+				} else {
+					return &boolType, &bigquery.QueryParameterValue{
+						Value: "FALSE",
+					}, nil
+				}
 			}
 		}
 	}
