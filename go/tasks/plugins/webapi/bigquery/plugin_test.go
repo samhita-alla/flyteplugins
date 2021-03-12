@@ -6,6 +6,7 @@ import (
 
 	flyteIdlCore "github.com/flyteorg/flyteidl/gen/pb-go/flyteidl/core"
 	"github.com/flyteorg/flyteplugins/go/tasks/pluginmachinery/core"
+	pluginsCore "github.com/flyteorg/flyteplugins/go/tasks/pluginmachinery/core"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/googleapi"
@@ -80,4 +81,126 @@ func TestHandleCreateError(t *testing.T) {
 		}, *phase.Err())
 		assert.Equal(t, taskInfo, *phase.Info())
 	})
+}
+
+func TestHandleErrorResult(t *testing.T) {
+	occurredAt := time.Now()
+	taskInfo := core.TaskInfo{OccurredAt: &occurredAt}
+
+	type args struct {
+		reason    string
+		phase     core.Phase
+		errorKind flyteIdlCore.ExecutionError_ErrorKind
+	}
+
+	tests := []args{
+		{
+			reason:    "accessDenied",
+			phase:     pluginsCore.PhasePermanentFailure,
+			errorKind: flyteIdlCore.ExecutionError_USER,
+		},
+		{
+			reason:    "backendError",
+			phase:     pluginsCore.PhaseRetryableFailure,
+			errorKind: flyteIdlCore.ExecutionError_SYSTEM,
+		},
+		{
+			reason:    "billingNotEnabled",
+			phase:     pluginsCore.PhasePermanentFailure,
+			errorKind: flyteIdlCore.ExecutionError_USER,
+		},
+		{
+			reason:    "blocked",
+			phase:     pluginsCore.PhasePermanentFailure,
+			errorKind: flyteIdlCore.ExecutionError_USER,
+		},
+		{
+			reason:    "duplicate",
+			phase:     pluginsCore.PhasePermanentFailure,
+			errorKind: flyteIdlCore.ExecutionError_USER,
+		},
+		{
+			reason:    "internalError",
+			phase:     pluginsCore.PhaseRetryableFailure,
+			errorKind: flyteIdlCore.ExecutionError_SYSTEM,
+		},
+		{
+			reason:    "invalid",
+			phase:     pluginsCore.PhasePermanentFailure,
+			errorKind: flyteIdlCore.ExecutionError_USER,
+		},
+		{
+			reason:    "invalidQuery",
+			phase:     pluginsCore.PhasePermanentFailure,
+			errorKind: flyteIdlCore.ExecutionError_USER,
+		},
+		{
+			reason:    "invalidUser",
+			phase:     pluginsCore.PhaseRetryableFailure,
+			errorKind: flyteIdlCore.ExecutionError_SYSTEM,
+		},
+		{
+			reason:    "notFound",
+			phase:     pluginsCore.PhasePermanentFailure,
+			errorKind: flyteIdlCore.ExecutionError_USER,
+		},
+		{
+			reason:    "notImplemented",
+			phase:     pluginsCore.PhasePermanentFailure,
+			errorKind: flyteIdlCore.ExecutionError_USER,
+		},
+		{
+			reason:    "quotaExceeded",
+			phase:     pluginsCore.PhaseRetryableFailure,
+			errorKind: flyteIdlCore.ExecutionError_USER,
+		},
+		{
+			reason:    "rateLimitExceeded",
+			phase:     pluginsCore.PhaseRetryableFailure,
+			errorKind: flyteIdlCore.ExecutionError_USER,
+		},
+		{
+			reason:    "resourceInUse",
+			phase:     pluginsCore.PhaseRetryableFailure,
+			errorKind: flyteIdlCore.ExecutionError_SYSTEM,
+		},
+
+		{
+			reason:    "resourcesExceeded",
+			phase:     pluginsCore.PhasePermanentFailure,
+			errorKind: flyteIdlCore.ExecutionError_USER,
+		},
+
+		{
+			reason:    "responseTooLarge",
+			phase:     pluginsCore.PhasePermanentFailure,
+			errorKind: flyteIdlCore.ExecutionError_USER,
+		},
+		{
+			reason:    "stopped",
+			phase:     pluginsCore.PhasePermanentFailure,
+			errorKind: flyteIdlCore.ExecutionError_USER,
+		},
+		{
+			reason:    "tableUnavailable",
+			phase:     pluginsCore.PhaseRetryableFailure,
+			errorKind: flyteIdlCore.ExecutionError_SYSTEM,
+		},
+		{
+			reason:    "timeout",
+			phase:     pluginsCore.PhasePermanentFailure,
+			errorKind: flyteIdlCore.ExecutionError_USER,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.reason, func(t *testing.T) {
+			phaseInfo := handleErrorResult(test.reason, "message", &taskInfo)
+
+			assert.Equal(t, test.phase, phaseInfo.Phase())
+			assert.Equal(t, test.reason, phaseInfo.Err().Code)
+			assert.Equal(t, test.errorKind, phaseInfo.Err().Kind)
+			assert.Equal(t, "message", phaseInfo.Err().Message)
+		})
+	}
 }
