@@ -25,12 +25,14 @@ const (
 )
 
 type gkeTokenSource struct {
-	kubeClient        kubernetes.Interface
-	tokens            *sync.Map
-	singleflight      *singleflight.Group
-	identityNamespace string
-	scope             []string
-	deletion          *atomic.Bool
+	kubeClient             kubernetes.Interface
+	tokens                 *sync.Map
+	singleflight           *singleflight.Group
+	identityNamespace      string
+	scope                  []string
+	deletion               *atomic.Bool
+	federatedTokenEndpoint string // only for testing
+	iamCredentialsEndpoint string // only for testing
 }
 
 func (m *gkeTokenSource) getCachedToken(ctx context.Context, identity Identity) (*oauth2.Token, bool) {
@@ -135,10 +137,12 @@ func (m gkeTokenSource) GetTokenSource(ctx context.Context, identity Identity) (
 		}
 
 		token, err := ExchangeToken(ctx, StsRequest{
-			SubjectToken:      k8sServiceAccountToken,
-			Scope:             m.scope,
-			ServiceAccount:    gcpServiceAccount,
-			IdentityNamespace: m.identityNamespace,
+			SubjectToken:           k8sServiceAccountToken,
+			Scope:                  m.scope,
+			ServiceAccount:         gcpServiceAccount,
+			IdentityNamespace:      m.identityNamespace,
+			iamCredentialsEndpoint: m.iamCredentialsEndpoint,
+			federatedTokenEndpoint: m.federatedTokenEndpoint,
 		})
 
 		if err != nil {
@@ -184,13 +188,7 @@ func getKubeClient(kubeConfigPath string, kubeConfig KubeClientConfig) (*kuberne
 	return kubeClient, err
 }
 
-func NewGKETokenSource(config TokenSourceConfig) (TokenSource, error) {
-	kubeClient, err := getKubeClient(config.KubeConfigPath, config.KubeConfig)
-
-	if err != nil {
-		return gkeTokenSource{}, err
-	}
-
+func newGKETokenSource(kubeClient kubernetes.Interface, config TokenSourceConfig) gkeTokenSource {
 	deletion := atomic.NewBool(false)
 
 	return gkeTokenSource{
@@ -200,5 +198,15 @@ func NewGKETokenSource(config TokenSourceConfig) (TokenSource, error) {
 		scope:             config.Scope,
 		singleflight:      &singleflight.Group{},
 		deletion:          &deletion,
-	}, nil
+	}
+}
+
+func NewGKETokenSource(config TokenSourceConfig) (TokenSource, error) {
+	kubeClient, err := getKubeClient(config.KubeConfigPath, config.KubeConfig)
+
+	if err != nil {
+		return gkeTokenSource{}, err
+	}
+
+	return newGKETokenSource(kubeClient, config), nil
 }
