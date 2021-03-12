@@ -53,6 +53,7 @@ type Config struct {
 	WebAPI              webapi.PluginConfig          `json:"webApi" pflag:",Defines config for the base WebAPI plugin."`
 	ResourceConstraints core.ResourceConstraintsSpec `json:"resourceConstraints" pflag:"-,Defines resource constraints on how many executions to be created per project/overall at any given time."`
 	GoogleTokenSource   google.TokenSourceConfig     `json:"googleTokenSource" pflag:",Defines Google token source"`
+	bigQueryEndpoint    string                       // only for testing
 }
 
 func GetConfig() *Config {

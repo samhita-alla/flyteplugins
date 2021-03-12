@@ -19,10 +19,10 @@ import (
 )
 
 const (
-	requestedTokenType     = "urn:ietf:params:oauth:token-type:access_token"              // #nosec
-	grantType              = "urn:ietf:params:oauth:grant-type:token-exchange"            // #nosec
-	subjectTokenType       = "urn:ietf:params:oauth:token-type:jwt"                       // #nosec
-	federatedTokenEndpoint = "https://securetoken.googleapis.com/v1/identitybindingtoken" // #nosec
+	requestedTokenType     = "urn:ietf:params:oauth:token-type:access_token"   // #nosec
+	grantType              = "urn:ietf:params:oauth:grant-type:token-exchange" // #nosec
+	subjectTokenType       = "urn:ietf:params:oauth:token-type:jwt"            // #nosec
+	federatedTokenEndpoint = "https://securetoken.googleapis.com"              // #nosec
 	contentType            = "application/json"
 	httpTimeOutInSec       = 5
 	maxRequestRetry        = 5
@@ -43,12 +43,19 @@ type StsRequest struct {
 
 	// IdentityNamespace Workload identity namespace, e.g. [project_id].svc.id.goog
 	IdentityNamespace string
+
+	federatedTokenEndpoint string // only for testing
+	iamCredentialsEndpoint string // only for testing
 }
 
 // GenerateToken takes STS request and fetches token, returns Google credential
 func ExchangeToken(ctx context.Context, request StsRequest) (*oauth2.Token, error) {
 	if len(request.Scope) == 0 {
 		request.Scope = []string{defaultScope}
+	}
+
+	if request.federatedTokenEndpoint == "" {
+		request.federatedTokenEndpoint = federatedTokenEndpoint
 	}
 
 	// Exchange OIDC ID token for Google credentials. See https://cloud.google.com/iam/docs/access-resources-oidc
@@ -80,8 +87,8 @@ type federatedTokenResponse struct {
 	ExpiresIn       int64  `json:"expires_in"` // Expiration time in seconds
 }
 
-func constructFederatedTokenRequest(ctx context.Context, parameters StsRequest) (*http.Request, error) {
-	iss, err := getIss(parameters.SubjectToken)
+func constructFederatedTokenRequest(ctx context.Context, request StsRequest) (*http.Request, error) {
+	iss, err := getIss(request.SubjectToken)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't get iss from subject token")
@@ -91,15 +98,15 @@ func constructFederatedTokenRequest(ctx context.Context, parameters StsRequest) 
 		return nil, errors.New("issued federated token doesn't have 'iss' in payload")
 	}
 
-	audience := fmt.Sprintf("identitynamespace:%s:%s", parameters.IdentityNamespace, iss)
-	scope := strings.Join(parameters.Scope, ",")
+	audience := fmt.Sprintf("identitynamespace:%s:%s", request.IdentityNamespace, iss)
+	scope := strings.Join(request.Scope, ",")
 
 	query := map[string]string{
 		"audience":           audience,
 		"grantType":          grantType,
 		"requestedTokenType": requestedTokenType,
 		"subjectTokenType":   subjectTokenType,
-		"subjectToken":       parameters.SubjectToken,
+		"subjectToken":       request.SubjectToken,
 		"scope":              scope,
 	}
 
@@ -121,7 +128,7 @@ func constructFederatedTokenRequest(ctx context.Context, parameters StsRequest) 
 		return nil, fmt.Errorf("failed to marshal query for get federated token request: %+v", err)
 	}
 
-	req, err := http.NewRequest("POST", federatedTokenEndpoint, bytes.NewBuffer(jsonQuery))
+	req, err := http.NewRequest("POST", request.federatedTokenEndpoint+"/v1/identitybindingtoken", bytes.NewBuffer(jsonQuery))
 	if err != nil {
 		return req, fmt.Errorf("failed to create get federated token request: %+v", err)
 	}
@@ -207,17 +214,22 @@ func sendRequestWithRetry(req *http.Request) (resp *http.Response, err error) {
 	return resp, err
 }
 
-func generateAccessToken(ctx context.Context, parameters StsRequest, federatedAccessToken *oauth2.Token) (token *oauth2.Token, err error) {
-	service, err := iamcredentials.NewService(ctx,
-		option.WithTokenSource(oauth2.StaticTokenSource(federatedAccessToken)))
+func generateAccessToken(ctx context.Context, stsRequest StsRequest, federatedAccessToken *oauth2.Token) (token *oauth2.Token, err error) {
+	options := []option.ClientOption{option.WithTokenSource(oauth2.StaticTokenSource(federatedAccessToken))}
+
+	if stsRequest.iamCredentialsEndpoint != "" {
+		options = append(options, option.WithEndpoint(stsRequest.iamCredentialsEndpoint))
+	}
+
+	service, err := iamcredentials.NewService(ctx, options...)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to construct iamcredentials service")
 	}
 
-	name := "projects/-/serviceAccounts/" + parameters.ServiceAccount
+	name := "projects/-/serviceAccounts/" + stsRequest.ServiceAccount
 	request := iamcredentials.GenerateAccessTokenRequest{
-		Scope:    parameters.Scope,
+		Scope:    stsRequest.Scope,
 		Lifetime: lifetime,
 	}
 

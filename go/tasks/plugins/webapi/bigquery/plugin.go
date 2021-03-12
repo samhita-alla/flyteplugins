@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"time"
 
+	"golang.org/x/oauth2"
+
 	"github.com/flyteorg/flyteplugins/go/tasks/pluginmachinery/google"
 	structpb "github.com/golang/protobuf/ptypes/struct"
-	"golang.org/x/oauth2"
 	"google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/googleapi"
 
@@ -85,13 +86,7 @@ func (p Plugin) createImpl(ctx context.Context, taskCtx webapi.TaskExecutionCont
 	namespace := taskCtx.TaskExecutionMetadata().GetNamespace()
 	k8sServiceAccount := taskCtx.TaskExecutionMetadata().GetK8sServiceAccount()
 	identity := google.Identity{K8sNamespace: namespace, K8sServiceAccount: k8sServiceAccount}
-	tokenSource, err := p.googleTokenSource.GetTokenSource(ctx, identity)
-
-	if err != nil {
-		return nil, nil, pluginErrors.Wrapf(pluginErrors.RuntimeFailure, err, "unable to get token source")
-	}
-
-	client, err := newBigQueryClient(ctx, tokenSource)
+	client, err := p.newBigQueryClient(ctx, identity)
 
 	if err != nil {
 		return nil, nil, pluginErrors.Wrapf(pluginErrors.RuntimeFailure, err, "unable to get bigquery client")
@@ -190,16 +185,11 @@ func (p Plugin) Get(ctx context.Context, taskCtx webapi.GetContext) (latest weba
 func (p Plugin) getImpl(ctx context.Context, taskCtx webapi.GetContext) (wrapper *ResourceWrapper, err error) {
 	resourceMeta := taskCtx.ResourceMeta().(*ResourceMetaWrapper)
 
-	tokenSource, err := p.googleTokenSource.GetTokenSource(ctx, google.Identity{
+	identity := google.Identity{
 		K8sNamespace:      resourceMeta.Namespace,
 		K8sServiceAccount: resourceMeta.K8sServiceAccount,
-	})
-
-	if err != nil {
-		return nil, pluginErrors.Wrapf(pluginErrors.RuntimeFailure, err, "unable to get token source")
 	}
-
-	client, err := newBigQueryClient(ctx, tokenSource)
+	client, err := p.newBigQueryClient(ctx, identity)
 
 	if err != nil {
 		return nil, pluginErrors.Wrapf(pluginErrors.RuntimeFailure, err, "unable to get client")
@@ -228,16 +218,12 @@ func (p Plugin) Delete(ctx context.Context, taskCtx webapi.DeleteContext) error 
 	}
 
 	resourceMeta := taskCtx.ResourceMeta().(*ResourceMetaWrapper)
-	tokenSource, err := p.googleTokenSource.GetTokenSource(ctx, google.Identity{
+
+	identity := google.Identity{
 		K8sNamespace:      resourceMeta.Namespace,
 		K8sServiceAccount: resourceMeta.K8sServiceAccount,
-	})
-
-	if err != nil {
-		return pluginErrors.Wrapf(pluginErrors.RuntimeFailure, err, "unable to get token source")
 	}
-
-	client, err := newBigQueryClient(ctx, tokenSource)
+	client, err := p.newBigQueryClient(ctx, identity)
 
 	if err != nil {
 		return err
@@ -459,12 +445,25 @@ func formatJobReference(reference bigquery.JobReference) string {
 	return fmt.Sprintf("%s:%s.%s", reference.ProjectId, reference.Location, reference.JobId)
 }
 
-func newBigQueryClient(ctx context.Context, tokenSource oauth2.TokenSource) (*bigquery.Service, error) {
+func (p Plugin) newBigQueryClient(ctx context.Context, identity google.Identity) (*bigquery.Service, error) {
 	options := []option.ClientOption{
 		option.WithScopes("https://www.googleapis.com/auth/bigquery"),
 		// FIXME how do I access current version?
 		option.WithUserAgent(fmt.Sprintf("%s/%s", "flytepropeller", "LATEST")),
-		option.WithTokenSource(tokenSource),
+	}
+
+	if p.cfg.bigQueryEndpoint != "" {
+		options = append(options,
+			option.WithEndpoint(p.cfg.bigQueryEndpoint),
+			option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{})))
+	} else {
+		tokenSource, err := p.googleTokenSource.GetTokenSource(ctx, identity)
+
+		if err != nil {
+			return nil, pluginErrors.Wrapf(pluginErrors.RuntimeFailure, err, "unable to get token source")
+		}
+
+		options = append(options, option.WithTokenSource(tokenSource))
 	}
 
 	return bigquery.NewService(ctx, options...)
@@ -484,15 +483,21 @@ func NewPlugin(cfg *Config, metricScope promutils.Scope) (*Plugin, error) {
 	}, nil
 }
 
+func newBigQueryJobTaskPlugin(cfg *Config) webapi.PluginEntry {
+	return webapi.PluginEntry{
+		ID:                 "bigquery",
+		SupportedTaskTypes: []core.TaskType{bigqueryQueryJobTask},
+		PluginLoader: func(ctx context.Context, iCtx webapi.PluginSetupContext) (webapi.AsyncPlugin, error) {
+			return NewPlugin(cfg, iCtx.MetricsScope())
+		},
+	}
+}
+
 func init() {
 	gob.Register(ResourceMetaWrapper{})
 	gob.Register(ResourceWrapper{})
 
-	pluginmachinery.PluginRegistry().RegisterRemotePlugin(webapi.PluginEntry{
-		ID:                 "bigquery",
-		SupportedTaskTypes: []core.TaskType{bigqueryQueryJobTask},
-		PluginLoader: func(ctx context.Context, iCtx webapi.PluginSetupContext) (webapi.AsyncPlugin, error) {
-			return NewPlugin(GetConfig(), iCtx.MetricsScope())
-		},
-	})
+	cfg := GetConfig()
+
+	pluginmachinery.PluginRegistry().RegisterRemotePlugin(newBigQueryJobTaskPlugin(cfg))
 }
