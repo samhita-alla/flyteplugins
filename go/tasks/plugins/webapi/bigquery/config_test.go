@@ -1,9 +1,10 @@
 package bigquery
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/structpb"
-	"testing"
 )
 
 func TestUnmarshalBigQueryQueryConfig(t *testing.T) {

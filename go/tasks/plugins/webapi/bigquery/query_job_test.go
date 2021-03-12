@@ -1,10 +1,11 @@
 package bigquery
 
 import (
+	"testing"
+
 	"github.com/flyteorg/flyteplugins/go/tasks/pluginmachinery/utils"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/bigquery/v2"
-	"testing"
 )
 
 func TestGetQueryParameter(t *testing.T) {
@@ -50,7 +51,7 @@ func TestGetQueryParameter(t *testing.T) {
 		}, *value)
 	})
 
-	t.Run("get bool parameter", func(t *testing.T) {
+	t.Run("get true parameter", func(t *testing.T) {
 		literal, _ := utils.MakePrimitiveLiteral(true)
 
 		tpe, value, err := getQueryParameter(literal)
@@ -61,6 +62,20 @@ func TestGetQueryParameter(t *testing.T) {
 		}, *tpe)
 		assert.Equal(t, bigquery.QueryParameterValue{
 			Value: "TRUE",
+		}, *value)
+	})
+
+	t.Run("get false parameter", func(t *testing.T) {
+		literal, _ := utils.MakePrimitiveLiteral(false)
+
+		tpe, value, err := getQueryParameter(literal)
+
+		assert.NoError(t, err)
+		assert.Equal(t, bigquery.QueryParameterType{
+			Type: "BOOL",
+		}, *tpe)
+		assert.Equal(t, bigquery.QueryParameterValue{
+			Value: "FALSE",
 		}, *value)
 	})
 }

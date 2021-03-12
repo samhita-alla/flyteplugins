@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/gob"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/flyteorg/flyteplugins/go/tasks/pluginmachinery/google"
 	structpb "github.com/golang/protobuf/ptypes/struct"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/googleapi"
-	"net/http"
-	"time"
 
 	flyteIdlCore "github.com/flyteorg/flyteidl/gen/pb-go/flyteidl/core"
 	pluginErrors "github.com/flyteorg/flyteplugins/go/tasks/errors"
@@ -67,7 +68,7 @@ func (p Plugin) createImpl(ctx context.Context, taskCtx webapi.TaskExecutionCont
 	*ResourceWrapper, error) {
 
 	taskTemplate, err := taskCtx.TaskReader().Read(ctx)
-	jobId := taskCtx.TaskExecutionMetadata().GetTaskExecutionID().GetGeneratedName()
+	jobID := taskCtx.TaskExecutionMetadata().GetTaskExecutionID().GetGeneratedName()
 
 	if err != nil {
 		return nil, nil, pluginErrors.Wrapf(pluginErrors.RuntimeFailure, err, "unable to fetch task specification")
@@ -97,7 +98,7 @@ func (p Plugin) createImpl(ctx context.Context, taskCtx webapi.TaskExecutionCont
 	}
 
 	if taskTemplate.Type == bigqueryQueryJobTask {
-		job, err = createQueryJob(jobId, taskTemplate.GetCustom(), inputs)
+		job, err = createQueryJob(jobID, taskTemplate.GetCustom(), inputs)
 	} else {
 		err = pluginErrors.Errorf(pluginErrors.BadTaskSpecification, "unexpected task type [%v]", taskTemplate.Type)
 	}
@@ -265,7 +266,7 @@ func (p Plugin) Status(_ context.Context, tCtx webapi.StatusContext) (phase core
 	taskInfo := createTaskInfo(resourceMeta)
 
 	if resource.CreateError != nil {
-		return handleCreateError(resource.CreateError, taskInfo)
+		return handleCreateError(resource.CreateError, taskInfo), nil
 	}
 
 	switch resource.Status.State {
@@ -280,7 +281,7 @@ func (p Plugin) Status(_ context.Context, tCtx webapi.StatusContext) (phase core
 			return handleErrorResult(
 				resource.Status.ErrorResult.Reason,
 				resource.Status.ErrorResult.Message,
-				taskInfo)
+				taskInfo), nil
 		}
 
 		return pluginsCore.PhaseInfoSuccess(taskInfo), nil
@@ -289,7 +290,7 @@ func (p Plugin) Status(_ context.Context, tCtx webapi.StatusContext) (phase core
 	return core.PhaseInfoUndefined, pluginErrors.Errorf(pluginsCore.SystemErrorCode, "unknown execution phase [%v].", resource.Status.State)
 }
 
-func handleCreateError(createError *googleapi.Error, taskInfo *core.TaskInfo) (core.PhaseInfo, error) {
+func handleCreateError(createError *googleapi.Error, taskInfo *core.TaskInfo) core.PhaseInfo {
 	code := fmt.Sprintf("http%d", createError.Code)
 
 	userExecutionError := &flyteIdlCore.ExecutionError{
@@ -305,18 +306,18 @@ func handleCreateError(createError *googleapi.Error, taskInfo *core.TaskInfo) (c
 	}
 
 	if createError.Code >= http.StatusBadRequest && createError.Code < http.StatusInternalServerError {
-		return core.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo), nil
+		return core.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo)
 	}
 
 	if createError.Code >= http.StatusInternalServerError {
-		return core.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, systemExecutionError, taskInfo), nil
+		return core.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, systemExecutionError, taskInfo)
 	}
 
 	// something unexpected happened, just terminate task
-	return core.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, systemExecutionError, taskInfo), nil
+	return core.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, systemExecutionError, taskInfo)
 }
 
-func handleErrorResult(reason string, message string, taskInfo *core.TaskInfo) (core.PhaseInfo, error) {
+func handleErrorResult(reason string, message string, taskInfo *core.TaskInfo) core.PhaseInfo {
 	userExecutionError := &flyteIdlCore.ExecutionError{
 		Message: message,
 		Kind:    flyteIdlCore.ExecutionError_USER,
@@ -341,99 +342,99 @@ func handleErrorResult(reason string, message string, taskInfo *core.TaskInfo) (
 
 	switch reason {
 	case "":
-		return pluginsCore.PhaseInfoSuccess(taskInfo), nil
+		return pluginsCore.PhaseInfoSuccess(taskInfo)
 
 	// This error returns when you try to access a resource such as a dataset, table, view, or job that you
 	// don't have access to. This error also returns when you try to modify a read-only object.
 	case "accessDenied":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo)
 
 	// This error returns when there is a temporary server failure such as a network connection problem or
 	// a server overload.
 	case "backendError":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, systemExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, systemExecutionError, taskInfo)
 
 	// This error returns when billing isn't enabled for the project.
 	case "billingNotEnabled":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo)
 
 	// This error returns when BigQuery has temporarily denylisted the operation you attempted to perform,
 	// usually to prevent a service outage. This error rarely occurs.
 	case "blocked":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo)
 
 	// This error returns when trying to create a job, dataset, or table that already exists. The error also
 	// returns when a job's writeDisposition property is set to WRITE_EMPTY and the destination table accessed
 	// by the job already exists.
 	case "duplicate":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo)
 
 	// This error returns when an internal error occurs within BigQuery.
 	case "internalError":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, systemExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, systemExecutionError, taskInfo)
 
 	// This error returns when there is any kind of invalid input other than an invalid query, such as missing
 	// required fields or an invalid table schema. Invalid queries return an invalidQuery error instead.
 	case "invalid":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo)
 
 	// This error returns when you attempt to run an invalid query.
 	case "invalidQuery":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo)
 
 	// This error returns when you attempt to schedule a query with invalid user credentials.
 	case "invalidUser":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, systemExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, systemExecutionError, taskInfo)
 
 	// This error returns when you refer to a resource (a dataset, a table, or a job) that doesn't exist.
 	// This can also occur when using snapshot decorators to refer to deleted tables that have recently been
 	// streamed to.
 	case "notFound":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo)
 
 	// This job error returns when you try to access a feature that isn't implemented.
 	case "notImplemented":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo)
 
 	// This error returns when your project exceeds a BigQuery quota, a custom quota, or when you haven't set up
 	// billing and you have exceeded the free tier for queries.
 	case "quotaExceeded":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, userExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, userExecutionError, taskInfo)
 
 	case "rateLimitExceeded":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, userExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, userExecutionError, taskInfo)
 
 	// This error returns when you try to delete a dataset that contains tables or when you try to delete a job
 	// that is currently running.
 	case "resourceInUse":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, systemExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, systemExecutionError, taskInfo)
 
 	// This error returns when your query uses too many resources.
 	case "resourcesExceeded":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo)
 
 	// This error returns when your query's results are larger than the maximum response size. Some queries execute
 	// in multiple stages, and this error returns when any stage returns a response size that is too large, even if
 	// the final result is smaller than the maximum. This error commonly returns when queries use an ORDER BY
 	// clause.
 	case "responseTooLarge":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo)
 
 	// This status code returns when a job is canceled.
 	case "stopped":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo)
 
 	// Certain BigQuery tables are backed by data managed by other Google product teams. This error indicates that
 	// one of these tables is unavailable.
 	case "tableUnavailable":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, systemExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhaseRetryableFailure, systemExecutionError, taskInfo)
 
 	// The job timed out.
 	case "timeout":
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, userExecutionError, taskInfo)
 
 	default:
-		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, systemExecutionError, taskInfo), nil
+		return pluginsCore.PhaseInfoFailed(pluginsCore.PhasePermanentFailure, systemExecutionError, taskInfo)
 	}
 }
 

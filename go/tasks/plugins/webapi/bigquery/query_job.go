@@ -2,13 +2,14 @@ package bigquery
 
 import (
 	"encoding/json"
+	"strconv"
+
 	flyteIdlCore "github.com/flyteorg/flyteidl/gen/pb-go/flyteidl/core"
 	pluginErrors "github.com/flyteorg/flyteplugins/go/tasks/errors"
 	"github.com/flyteorg/flytestdlib/errors"
 	"github.com/golang/protobuf/jsonpb"
 	structpb "github.com/golang/protobuf/ptypes/struct"
 	"google.golang.org/api/bigquery/v2"
-	"strconv"
 )
 
 type QueryJobConfig struct {
@@ -106,7 +107,7 @@ type QueryJobConfig struct {
 	// should be specified.
 	TimePartitioning *bigquery.TimePartitioning `json:"timePartitioning,omitempty"`
 
-	// UseLegacySql: Specifies whether to use BigQuery's legacy SQL dialect
+	// UseLegacySQL: Specifies whether to use BigQuery's legacy SQL dialect
 	// for this query. The default value is true. If set to false, the query
 	// will use BigQuery's standard SQL:
 	// https://cloud.google.com/bigquery/sql-reference/ When useLegacySql is
@@ -114,7 +115,7 @@ type QueryJobConfig struct {
 	// run as if flattenResults is false.
 	//
 	// Default: true
-	UseLegacySql *bool `json:"useLegacySql,omitempty"`
+	UseLegacySQL *bool `json:"useLegacySql,omitempty"`
 
 	// UseQueryCache: [Optional] Whether to look for the result in the query
 	// cache. The query cache is a best-effort cache that will be flushed
@@ -178,7 +179,7 @@ func getJobConfigurationQuery(custom *QueryJobConfig, inputs *flyteIdlCore.Liter
 		SchemaUpdateOptions:                custom.SchemaUpdateOptions,
 		TableDefinitions:                   custom.TableDefinitions,
 		TimePartitioning:                   custom.TimePartitioning,
-		UseLegacySql:                       custom.UseLegacySql,
+		UseLegacySql:                       custom.UseLegacySQL,
 		UseQueryCache:                      custom.UseQueryCache,
 		UserDefinedFunctionResources:       custom.UserDefinedFunctionResources,
 		WriteDisposition:                   custom.WriteDisposition,
@@ -202,7 +203,7 @@ func getQueryParameters(literalMap map[string]*flyteIdlCore.Literal) ([]*bigquer
 			ParameterValue: parameterValue,
 		}
 
-		i += 1
+		i++
 	}
 
 	return queryParameters, nil
@@ -245,11 +246,11 @@ func getQueryParameter(literal *flyteIdlCore.Literal) (*bigquery.QueryParameterT
 					return &boolType, &bigquery.QueryParameterValue{
 						Value: "TRUE",
 					}, nil
-				} else {
-					return &boolType, &bigquery.QueryParameterValue{
-						Value: "FALSE",
-					}, nil
 				}
+
+				return &boolType, &bigquery.QueryParameterValue{
+					Value: "FALSE",
+				}, nil
 			}
 		}
 	}

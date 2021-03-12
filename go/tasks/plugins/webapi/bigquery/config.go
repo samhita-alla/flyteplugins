@@ -1,8 +1,9 @@
 package bigquery
 
 import (
-	"github.com/flyteorg/flyteplugins/go/tasks/pluginmachinery/google"
 	"time"
+
+	"github.com/flyteorg/flyteplugins/go/tasks/pluginmachinery/google"
 
 	pluginsConfig "github.com/flyteorg/flyteplugins/go/tasks/config"
 	"github.com/flyteorg/flyteplugins/go/tasks/pluginmachinery/core"

@@ -2,13 +2,17 @@ package google
 
 import (
 	"context"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/flyteorg/flytestdlib/atomic"
 	"github.com/golang/groupcache/singleflight"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
-	"sync"
-	"testing"
-	"time"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestGetCachedToken(t *testing.T) {
@@ -56,6 +60,31 @@ func TestGetCachedToken(t *testing.T) {
 
 		_, ok = ts.tokens.Load(identity)
 		assert.False(t, ok)
+	})
+}
+
+func TestGetGcpServiceAccount(t *testing.T) {
+	ctx := context.TODO()
+
+	t.Run("get GCP service account", func(t *testing.T) {
+		ts := newGkeTokenSource()
+		ts.kubeClient = fake.NewSimpleClientset(&corev1.ServiceAccount{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "name",
+				Namespace: "namespace",
+				Annotations: map[string]string{
+					"owner":                          "abc",
+					"iam.gke.io/gcp-service-account": "gcp-service-account",
+				},
+			}})
+
+		gcpServiceAccount, err := ts.getGcpServiceAccount(ctx, Identity{
+			K8sNamespace:      "namespace",
+			K8sServiceAccount: "name",
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, "gcp-service-account", gcpServiceAccount)
 	})
 }
 

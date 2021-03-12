@@ -2,13 +2,14 @@ package google
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 )
 
 const (
 	DefaultTokenSourceType = "default"
-	GKETokenSourceType = "gke"
+	GKETokenSourceType     = "gke"
 )
 
 type Identity struct {

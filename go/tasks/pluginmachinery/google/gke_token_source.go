@@ -2,6 +2,10 @@ package google
 
 import (
 	"context"
+	"os"
+	"sync"
+	"time"
+
 	"github.com/flyteorg/flytestdlib/atomic"
 	"github.com/flyteorg/flytestdlib/logger"
 	"github.com/golang/groupcache/singleflight"
@@ -12,15 +16,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"sync"
-	"time"
 )
 
 const (
 	defaultGracePeriod             = 300
 	gcpServiceAccountAnnotationKey = "iam.gke.io/gcp-service-account"
-	workflowIdentityDocUrl         = "https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity"
+	workflowIdentityDocURL         = "https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity"
 )
 
 type gkeTokenSource struct {
@@ -43,24 +44,24 @@ func (m *gkeTokenSource) getCachedToken(ctx context.Context, identity Identity) 
 
 	if !hasExpired(token) {
 		return token, true
-	} else {
-		// poor man's TTL cache, cache size shouldn't be a concern because it is limited by the number of SAs
-		// if token has expired, clean other expired tokens, otherwise, nobody will clean them
-		if m.deletion.CompareAndSwap(false, true) {
-			m.tokens.Range(func(rawKey, value interface{}) bool {
-				identity := rawKey.(Identity)
-				token := value.(*oauth2.Token)
+	}
 
-				if hasExpired(token) {
-					logger.Infof(ctx, "Removed expired token for [%s/%s]", identity.K8sNamespace, identity.K8sServiceAccount)
-					m.tokens.Delete(identity)
-				}
+	// poor man's TTL cache, cache size shouldn't be a concern because it is limited by the number of SAs
+	// if token has expired, clean other expired tokens, otherwise, nobody will clean them
+	if m.deletion.CompareAndSwap(false, true) {
+		m.tokens.Range(func(rawKey, value interface{}) bool {
+			identity := rawKey.(Identity)
+			token := value.(*oauth2.Token)
 
-				return true
-			})
+			if hasExpired(token) {
+				logger.Infof(ctx, "Removed expired token for [%s/%s]", identity.K8sNamespace, identity.K8sServiceAccount)
+				m.tokens.Delete(identity)
+			}
 
-			m.deletion.Store(false)
-		}
+			return true
+		})
+
+		m.deletion.Store(false)
 	}
 
 	return nil, false
@@ -107,7 +108,7 @@ func (m *gkeTokenSource) getGcpServiceAccount(ctx context.Context, identity Iden
 		gcpServiceAccountAnnotationKey,
 		identity.K8sNamespace,
 		identity.K8sServiceAccount,
-		workflowIdentityDocUrl)
+		workflowIdentityDocURL)
 }
 
 func (m gkeTokenSource) GetTokenSource(ctx context.Context, identity Identity) (oauth2.TokenSource, error) {
@@ -128,6 +129,10 @@ func (m gkeTokenSource) GetTokenSource(ctx context.Context, identity Identity) (
 		}
 
 		gcpServiceAccount, err := m.getGcpServiceAccount(ctx, identity)
+
+		if err != nil {
+			return nil, err
+		}
 
 		token, err := ExchangeToken(ctx, StsRequest{
 			SubjectToken:      k8sServiceAccountToken,

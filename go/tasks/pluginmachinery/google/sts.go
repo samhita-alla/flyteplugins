@@ -5,23 +5,24 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/flyteorg/flytestdlib/logger"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iamcredentials/v1"
 	"google.golang.org/api/option"
-	"io/ioutil"
-	"net/http"
-	"strings"
-	"time"
 )
 
 const (
-	requestedTokenType     = "urn:ietf:params:oauth:token-type:access_token"
-	grantType              = "urn:ietf:params:oauth:grant-type:token-exchange"
-	subjectTokenType       = "urn:ietf:params:oauth:token-type:jwt"
-	federatedTokenEndpoint = "https://securetoken.googleapis.com/v1/identitybindingtoken"
+	requestedTokenType     = "urn:ietf:params:oauth:token-type:access_token"              // #nosec
+	grantType              = "urn:ietf:params:oauth:grant-type:token-exchange"            // #nosec
+	subjectTokenType       = "urn:ietf:params:oauth:token-type:jwt"                       // #nosec
+	federatedTokenEndpoint = "https://securetoken.googleapis.com/v1/identitybindingtoken" // #nosec
 	contentType            = "application/json"
 	httpTimeOutInSec       = 5
 	maxRequestRetry        = 5

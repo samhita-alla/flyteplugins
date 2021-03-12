@@ -1,8 +1,9 @@
 package google
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetIss(t *testing.T) {

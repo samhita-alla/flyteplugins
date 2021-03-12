@@ -1,13 +1,14 @@
 package bigquery
 
 import (
+	"testing"
+	"time"
+
 	flyteIdlCore "github.com/flyteorg/flyteidl/gen/pb-go/flyteidl/core"
 	"github.com/flyteorg/flyteplugins/go/tasks/pluginmachinery/core"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/googleapi"
-	"testing"
-	"time"
 )
 
 func TestFormatJobReference(t *testing.T) {
@@ -54,9 +55,8 @@ func TestHandleCreateError(t *testing.T) {
 			Message: "user xxx is not authorized",
 		}
 
-		phase, err := handleCreateError(&createError, &taskInfo)
+		phase := handleCreateError(&createError, &taskInfo)
 
-		assert.NoError(t, err)
 		assert.Equal(t, flyteIdlCore.ExecutionError{
 			Code:    "http401",
 			Message: "user xxx is not authorized",
@@ -71,9 +71,8 @@ func TestHandleCreateError(t *testing.T) {
 			Message: "oops",
 		}
 
-		phase, err := handleCreateError(&createError, &taskInfo)
+		phase := handleCreateError(&createError, &taskInfo)
 
-		assert.NoError(t, err)
 		assert.Equal(t, flyteIdlCore.ExecutionError{
 			Code:    "http500",
 			Message: "oops",
