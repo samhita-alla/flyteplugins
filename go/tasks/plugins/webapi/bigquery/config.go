@@ -1,3 +1,4 @@
+// Package bigquery implements WebAPI plugin for Google BigQuery
 package bigquery
 
 import (
