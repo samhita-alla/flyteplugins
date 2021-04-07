@@ -426,7 +426,7 @@ func handleErrorResult(reason string, message string, taskInfo *core.TaskInfo) c
 
 func createTaskInfo(resourceMeta *ResourceMetaWrapper) *core.TaskInfo {
 	timeNow := time.Now()
-	j := fmt.Sprintf("bq:%s:%s", resourceMeta.JobReference.Location, resourceMeta.JobReference.JobId)
+	j := formatJobReferenceForQueryParam(resourceMeta.JobReference)
 
 	return &core.TaskInfo{
 		OccurredAt: &timeNow,
@@ -443,6 +443,10 @@ func createTaskInfo(resourceMeta *ResourceMetaWrapper) *core.TaskInfo {
 
 func formatJobReference(reference bigquery.JobReference) string {
 	return fmt.Sprintf("%s:%s.%s", reference.ProjectId, reference.Location, reference.JobId)
+}
+
+func formatJobReferenceForQueryParam(jobReference bigquery.JobReference) string {
+	return fmt.Sprintf("bq:%s:%s", jobReference.Location, jobReference.JobId)
 }
 
 func (p Plugin) newBigQueryClient(ctx context.Context, identity google.Identity) (*bigquery.Service, error) {
