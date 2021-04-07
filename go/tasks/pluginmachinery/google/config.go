@@ -18,6 +18,9 @@ type TokenSourceConfig struct {
 	// IdentityNamespace is workload identity namespace, e.g. [project_id].svc.id.goog
 	IdentityNamespace string `json:"identityNamespace" pflag:",Defines workload identity namespace, e.g. [project_id].svc.id.goog"`
 
+	// GKEClusterURL is URL to GKE cluster, e.g. https://container.googleapis.com/v1/projects/<project>/locations/<location>/clusters/<cluster>
+	GKEClusterURL string `json:"gkeClusterURL" pflag:",Defines URL to GKE cluster, e.g. https://container.googleapis.com/v1/projects/<project>/locations/<location>/clusters/<cluster>"`
+
 	// Scope is OAuth 2.0 scopes to include on the resulting access token
 	Scope []string `json:"scope" pflag:",Defines OAuth 2.0 scopes to include on the resulting access token"`
 
