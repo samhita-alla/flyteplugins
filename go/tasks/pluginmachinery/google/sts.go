@@ -26,7 +26,7 @@ const (
 	contentType            = "application/json"
 	httpTimeOutInSec       = 5
 	maxRequestRetry        = 5
-	lifetime               = "3000s"
+	lifetime               = "3600s"
 	bearerTokenType        = "Bearer"
 	defaultScope           = "https://www.googleapis.com/auth/cloud-platform"
 )
@@ -47,6 +47,9 @@ type StsRequest struct {
 	// GKEClusterURL is URL to GKE cluster, e.g. https://container.googleapis.com/v1/projects/<project>/locations/<location>/clusters/<cluster>
 	GKEClusterURL string
 
+	// Lifetime is lifetime of access token, the default is 3600s
+	Lifetime string
+
 	federatedTokenEndpoint string // only for testing
 	iamCredentialsEndpoint string // only for testing
 }
@@ -57,6 +60,7 @@ func ExchangeToken(ctx context.Context, request StsRequest) (*oauth2.Token, erro
 		request.Scope = []string{defaultScope}
 	}
 
+	// For mocking/testing purposes
 	if request.federatedTokenEndpoint == "" {
 		request.federatedTokenEndpoint = federatedTokenEndpoint
 	}
@@ -136,7 +140,7 @@ func constructFederatedTokenRequest(ctx context.Context, request StsRequest) (*h
 
 	jsonQuery, err := json.Marshal(query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal query for get federated token request: %+v", err)
+		return nil, errors.Wrapf(err, "failed to marshal query for get federated token request")
 	}
 
 	req, err := http.NewRequest("POST", request.federatedTokenEndpoint+"/v1/identitybindingtoken", bytes.NewBuffer(jsonQuery))
@@ -228,6 +232,11 @@ func sendRequestWithRetry(req *http.Request) (resp *http.Response, err error) {
 func generateAccessToken(ctx context.Context, stsRequest StsRequest, federatedAccessToken *oauth2.Token) (token *oauth2.Token, err error) {
 	options := []option.ClientOption{option.WithTokenSource(oauth2.StaticTokenSource(federatedAccessToken))}
 
+	if stsRequest.Lifetime == "" {
+		stsRequest.Lifetime = lifetime
+	}
+
+	// For mocking/testing purposes
 	if stsRequest.iamCredentialsEndpoint != "" {
 		options = append(options, option.WithEndpoint(stsRequest.iamCredentialsEndpoint))
 	}
@@ -241,7 +250,7 @@ func generateAccessToken(ctx context.Context, stsRequest StsRequest, federatedAc
 	name := "projects/-/serviceAccounts/" + stsRequest.ServiceAccount
 	request := iamcredentials.GenerateAccessTokenRequest{
 		Scope:    stsRequest.Scope,
-		Lifetime: lifetime,
+		Lifetime: stsRequest.Lifetime,
 	}
 
 	logger.Infof(ctx, "Generating access token for [%v]", name)
