@@ -35,7 +35,8 @@ func TestEndToEnd(t *testing.T) {
 	cfg.bigQueryEndpoint = server.URL
 	cfg.WebAPI.Caching.Workers = 1
 	cfg.WebAPI.Caching.ResyncInterval.Duration = time.Nanosecond
-	SetConfig(&cfg)
+	err := SetConfig(&cfg)
+	assert.NoError(t, err)
 
 	pluginEntry := pluginmachinery.CreateRemotePlugin(newBigQueryJobTaskPlugin())
 	plugin, _ := pluginEntry.LoadPlugin(context.TODO(), newFakeSetupContext())
