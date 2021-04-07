@@ -13,6 +13,6 @@ func (m *defaultTokenSource) GetTokenSource(ctx context.Context, identity Identi
 	return google.DefaultTokenSource(ctx)
 }
 
-func NewDefaultTokenSource() (TokenSource, error) {
+func NewDefaultTokenSource() (TokenSourceFactory, error) {
 	return &defaultTokenSource{}, nil
 }

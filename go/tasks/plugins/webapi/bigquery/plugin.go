@@ -35,7 +35,7 @@ const (
 type Plugin struct {
 	metricScope       promutils.Scope
 	cfg               *Config
-	googleTokenSource google.TokenSource
+	googleTokenSource google.TokenSourceFactory
 }
 
 type ResourceWrapper struct {
@@ -470,7 +470,7 @@ func (p Plugin) newBigQueryClient(ctx context.Context, identity google.Identity)
 }
 
 func NewPlugin(cfg *Config, metricScope promutils.Scope) (*Plugin, error) {
-	googleTokenSource, err := google.NewTokenSource(cfg.GoogleTokenSource)
+	googleTokenSource, err := google.NewTokenSourceFactory(cfg.GoogleTokenSource)
 
 	if err != nil {
 		return nil, pluginErrors.Wrapf(pluginErrors.PluginInitializationFailed, err, "failed to get google token source")

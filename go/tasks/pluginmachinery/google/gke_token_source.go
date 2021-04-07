@@ -190,7 +190,7 @@ func getKubeClient(kubeConfigPath string, kubeConfig KubeClientConfig) (*kuberne
 	return kubeClient, err
 }
 
-func newGKETokenSource(kubeClient kubernetes.Interface, config TokenSourceConfig) gkeTokenSource {
+func newGKETokenSource(kubeClient kubernetes.Interface, config TokenSourceFactoryConfig) gkeTokenSource {
 	deletion := atomic.NewBool(false)
 
 	return gkeTokenSource{
@@ -204,7 +204,7 @@ func newGKETokenSource(kubeClient kubernetes.Interface, config TokenSourceConfig
 	}
 }
 
-func NewGKETokenSource(config TokenSourceConfig) (TokenSource, error) {
+func NewGKETokenSource(config TokenSourceFactoryConfig) (TokenSourceFactory, error) {
 	kubeClient, err := getKubeClient(config.KubeConfigPath, config.KubeClientConfig)
 
 	if err != nil {

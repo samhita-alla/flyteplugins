@@ -319,6 +319,28 @@ func TestConfig_SetFlags(t *testing.T) {
 			}
 		})
 	})
+	t.Run("Test_googleTokenSource.gkeClusterURL", func(t *testing.T) {
+		t.Run("DefaultValue", func(t *testing.T) {
+			// Test that default value is set properly
+			if vString, err := cmdFlags.GetString("googleTokenSource.gkeClusterURL"); err == nil {
+				assert.Equal(t, string(defaultConfig.GoogleTokenSource.GKEClusterURL), vString)
+			} else {
+				assert.FailNow(t, err.Error())
+			}
+		})
+
+		t.Run("Override", func(t *testing.T) {
+			testValue := "1"
+
+			cmdFlags.Set("googleTokenSource.gkeClusterURL", testValue)
+			if vString, err := cmdFlags.GetString("googleTokenSource.gkeClusterURL"); err == nil {
+				testDecodeJson_Config(t, fmt.Sprintf("%v", vString), &actual.GoogleTokenSource.GKEClusterURL)
+
+			} else {
+				assert.FailNow(t, err.Error())
+			}
+		})
+	})
 	t.Run("Test_googleTokenSource.scope", func(t *testing.T) {
 		t.Run("DefaultValue", func(t *testing.T) {
 			// Test that default value is set properly

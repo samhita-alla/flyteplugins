@@ -2,18 +2,18 @@ package google
 
 import "github.com/flyteorg/flytestdlib/config"
 
-type TokenSourceType = string
+type TokenSourceFactoryType = string
 
 const (
 	TokenSourceTypeDefault = "default"
 	TokenSourceTypeGKE = "gke"
 )
 
-type TokenSourceConfig struct {
-	// Type is type of TokenSource, possible values are 'default' or 'gke'.
+type TokenSourceFactoryConfig struct {
+	// Type is type of TokenSourceFactory, possible values are 'default' or 'gke'.
 	// - 'default' uses default credentials, see https://cloud.google.com/iam/docs/service-accounts#default
 	// - 'gke' uses GKE workload identity, see https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity
-	Type TokenSourceType `json:"type" pflag:",Defines type of TokenSource, possible values are 'default' or 'gke'"`
+	Type TokenSourceFactoryType `json:"type" pflag:",Defines type of TokenSourceFactory, possible values are 'default' or 'gke'"`
 
 	// IdentityNamespace is workload identity namespace, e.g. [project_id].svc.id.goog
 	IdentityNamespace string `json:"identityNamespace" pflag:",Defines workload identity namespace, e.g. [project_id].svc.id.goog"`
@@ -44,8 +44,8 @@ type KubeClientConfig struct {
 	Timeout config.Duration `json:"timeout" pflag:",Max duration allowed for every request to KubeAPI before giving up. 0 implies no timeout."`
 }
 
-func GetDefaultConfig() TokenSourceConfig {
-	return TokenSourceConfig{
+func GetDefaultConfig() TokenSourceFactoryConfig {
+	return TokenSourceFactoryConfig{
 		Type: "default",
 		KubeClientConfig: KubeClientConfig{
 			QPS:     5,

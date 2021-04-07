@@ -11,11 +11,11 @@ type Identity struct {
 	K8sServiceAccount string
 }
 
-type TokenSource interface {
+type TokenSourceFactory interface {
 	GetTokenSource(ctx context.Context, identity Identity) (oauth2.TokenSource, error)
 }
 
-func NewTokenSource(config TokenSourceConfig) (TokenSource, error) {
+func NewTokenSourceFactory(config TokenSourceFactoryConfig) (TokenSourceFactory, error) {
 	if config.Type == TokenSourceTypeDefault {
 		return NewDefaultTokenSource()
 	} else if config.Type == TokenSourceTypeGKE {

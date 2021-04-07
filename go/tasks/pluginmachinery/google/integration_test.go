@@ -51,7 +51,7 @@ func TestEndToEnd(t *testing.T) {
 
 	ctx := context.TODO()
 
-	gkeTokenSource := newGKETokenSource(kubeClient, TokenSourceConfig{})
+	gkeTokenSource := newGKETokenSource(kubeClient, TokenSourceFactoryConfig{})
 	gkeTokenSource.federatedTokenEndpoint = server.URL
 	gkeTokenSource.iamCredentialsEndpoint = server.URL
 
