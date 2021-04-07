@@ -268,7 +268,7 @@ func generateAccessToken(ctx context.Context, stsRequest StsRequest, federatedAc
 					break
 				}
 			} else {
-				break
+				// non-http error, for instance, connection refused, so we retry it
 			}
 		} else {
 			return &oauth2.Token{
