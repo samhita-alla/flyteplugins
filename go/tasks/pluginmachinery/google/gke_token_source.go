@@ -208,5 +208,9 @@ func NewGKETokenSource(config TokenSourceConfig) (TokenSource, error) {
 		return gkeTokenSource{}, err
 	}
 
+	if config.IdentityNamespace == "" {
+		return gkeTokenSource{}, errors.New("bigquery.googleTokenSource.identityNamespace is required when bigquery.googleTokenSource.type is 'gke'")
+	}
+
 	return newGKETokenSource(kubeClient, config), nil
 }
