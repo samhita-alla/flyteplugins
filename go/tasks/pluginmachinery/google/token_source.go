@@ -2,7 +2,6 @@ package google
 
 import (
 	"context"
-
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 )
@@ -27,6 +26,6 @@ func NewTokenSource(config TokenSourceConfig) (TokenSource, error) {
 	} else if config.Type == GKETokenSourceType {
 		return NewGKETokenSource(config)
 	} else {
-		return nil, errors.New("unknown token source type [%v], possible values are: 'default', 'gke'")
+		return nil, errors.Errorf("unknown token source type [%v], possible values are: 'default', 'gke'", config.Type)
 	}
 }
