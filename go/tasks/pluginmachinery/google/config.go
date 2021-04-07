@@ -6,7 +6,7 @@ type TokenSourceFactoryType = string
 
 const (
 	TokenSourceTypeDefault = "default"
-	TokenSourceTypeGKE = "gke"
+	TokenSourceTypeGKE     = "gke"
 )
 
 type TokenSourceFactoryConfig struct {

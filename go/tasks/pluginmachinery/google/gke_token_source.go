@@ -31,7 +31,7 @@ type gkeTokenSource struct {
 	identityNamespace      string
 	scope                  []string
 	deletion               *atomic.Bool
-	gkeClusterURL 		   string
+	gkeClusterURL          string
 	federatedTokenEndpoint string // only for testing
 	iamCredentialsEndpoint string // only for testing
 }
@@ -141,7 +141,7 @@ func (m gkeTokenSource) GetTokenSource(ctx context.Context, identity Identity) (
 			SubjectToken:           k8sServiceAccountToken,
 			Scope:                  m.scope,
 			ServiceAccount:         gcpServiceAccount,
-			GKEClusterURL: 			m.gkeClusterURL,
+			GKEClusterURL:          m.gkeClusterURL,
 			IdentityNamespace:      m.identityNamespace,
 			iamCredentialsEndpoint: m.iamCredentialsEndpoint,
 			federatedTokenEndpoint: m.federatedTokenEndpoint,
@@ -197,7 +197,7 @@ func newGKETokenSource(kubeClient kubernetes.Interface, config TokenSourceFactor
 		kubeClient:        kubeClient,
 		tokens:            &sync.Map{},
 		identityNamespace: config.IdentityNamespace,
-		gkeClusterURL: 	   config.GKEClusterURL,
+		gkeClusterURL:     config.GKEClusterURL,
 		scope:             config.Scope,
 		singleflight:      &singleflight.Group{},
 		deletion:          &deletion,

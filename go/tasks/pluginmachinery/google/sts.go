@@ -267,9 +267,8 @@ func generateAccessToken(ctx context.Context, stsRequest StsRequest, federatedAc
 				if apiError.Code >= http.StatusBadRequest && apiError.Code < http.StatusInternalServerError {
 					break
 				}
-			} else {
-				// non-http error, for instance, connection refused, so we retry it
 			}
+			// else it's non-http error, for instance, connection refused, so we retry it
 		} else {
 			return &oauth2.Token{
 				AccessToken: respData.AccessToken,
