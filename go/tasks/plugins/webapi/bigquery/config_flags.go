@@ -54,5 +54,6 @@ func (cfg Config) GetPFlagSet(prefix string) *pflag.FlagSet {
 	cmdFlags.StringSlice(fmt.Sprintf("%v%v", prefix, "googleTokenSource.scope"), []string{}, "Defines OAuth 2.0 scopes to include on the resulting access token")
 	cmdFlags.String(fmt.Sprintf("%v%v", prefix, "googleTokenSource.kubeConfig"), defaultConfig.GoogleTokenSource.KubeConfigPath, "Path to Kubernetes client config file.")
 	cmdFlags.String(fmt.Sprintf("%v%v", prefix, "googleTokenSource.kubeClientConfig.timeout"), defaultConfig.GoogleTokenSource.KubeConfig.Timeout.String(), "Max duration allowed for every request to KubeAPI before giving up. 0 implies no timeout.")
+	cmdFlags.String(fmt.Sprintf("%v%v", prefix, "bigQueryEndpoint"), defaultConfig.bigQueryEndpoint, "")
 	return cmdFlags
 }

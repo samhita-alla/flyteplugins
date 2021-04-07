@@ -6,11 +6,6 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const (
-	DefaultTokenSourceType = "default"
-	GKETokenSourceType     = "gke"
-)
-
 type Identity struct {
 	K8sNamespace      string
 	K8sServiceAccount string
@@ -21,9 +16,9 @@ type TokenSource interface {
 }
 
 func NewTokenSource(config TokenSourceConfig) (TokenSource, error) {
-	if config.Type == DefaultTokenSourceType {
+	if config.Type == TokenSourceTypeDefault {
 		return NewDefaultTokenSource()
-	} else if config.Type == GKETokenSourceType {
+	} else if config.Type == TokenSourceTypeGKE {
 		return NewGKETokenSource(config)
 	} else {
 		return nil, errors.Errorf("unknown token source type [%v], possible values are: 'default', 'gke'", config.Type)

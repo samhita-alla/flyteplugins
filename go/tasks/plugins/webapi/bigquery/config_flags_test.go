@@ -385,4 +385,26 @@ func TestConfig_SetFlags(t *testing.T) {
 			}
 		})
 	})
+	t.Run("Test_bigQueryEndpoint", func(t *testing.T) {
+		t.Run("DefaultValue", func(t *testing.T) {
+			// Test that default value is set properly
+			if vString, err := cmdFlags.GetString("bigQueryEndpoint"); err == nil {
+				assert.Equal(t, string(defaultConfig.bigQueryEndpoint), vString)
+			} else {
+				assert.FailNow(t, err.Error())
+			}
+		})
+
+		t.Run("Override", func(t *testing.T) {
+			testValue := "1"
+
+			cmdFlags.Set("bigQueryEndpoint", testValue)
+			if vString, err := cmdFlags.GetString("bigQueryEndpoint"); err == nil {
+				testDecodeJson_Config(t, fmt.Sprintf("%v", vString), &actual.bigQueryEndpoint)
+
+			} else {
+				assert.FailNow(t, err.Error())
+			}
+		})
+	})
 }
