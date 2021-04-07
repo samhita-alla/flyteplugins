@@ -30,6 +30,7 @@ import (
 
 const (
 	bigqueryQueryJobTask = "bigquery_query_job_task"
+	bigqueryConsolePath  = "https://console.cloud.google.com/bigquery"
 )
 
 type Plugin struct {
@@ -432,7 +433,8 @@ func createTaskInfo(resourceMeta *ResourceMetaWrapper) *core.TaskInfo {
 		OccurredAt: &timeNow,
 		Logs: []*flyteIdlCore.TaskLog{
 			{
-				Uri: fmt.Sprintf("https://console.cloud.google.com/bigquery?project=%v&j=%v&page=queryresults",
+				Uri: fmt.Sprintf("%s?project=%v&j=%v&page=queryresults",
+					bigqueryConsolePath,
 					resourceMeta.JobReference.ProjectId,
 					j),
 				Name: "BigQuery Console",
@@ -456,6 +458,7 @@ func (p Plugin) newBigQueryClient(ctx context.Context, identity google.Identity)
 		option.WithUserAgent(fmt.Sprintf("%s/%s", "flytepropeller", "LATEST")),
 	}
 
+	// for mocking/testing purposes
 	if p.cfg.bigQueryEndpoint != "" {
 		options = append(options,
 			option.WithEndpoint(p.cfg.bigQueryEndpoint),
