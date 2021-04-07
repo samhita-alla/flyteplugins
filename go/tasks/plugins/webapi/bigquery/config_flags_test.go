@@ -367,18 +367,18 @@ func TestConfig_SetFlags(t *testing.T) {
 		t.Run("DefaultValue", func(t *testing.T) {
 			// Test that default value is set properly
 			if vString, err := cmdFlags.GetString("googleTokenSource.kubeClientConfig.timeout"); err == nil {
-				assert.Equal(t, string(defaultConfig.GoogleTokenSource.KubeConfig.Timeout.String()), vString)
+				assert.Equal(t, string(defaultConfig.GoogleTokenSource.KubeClientConfig.Timeout.String()), vString)
 			} else {
 				assert.FailNow(t, err.Error())
 			}
 		})
 
 		t.Run("Override", func(t *testing.T) {
-			testValue := defaultConfig.GoogleTokenSource.KubeConfig.Timeout.String()
+			testValue := defaultConfig.GoogleTokenSource.KubeClientConfig.Timeout.String()
 
 			cmdFlags.Set("googleTokenSource.kubeClientConfig.timeout", testValue)
 			if vString, err := cmdFlags.GetString("googleTokenSource.kubeClientConfig.timeout"); err == nil {
-				testDecodeJson_Config(t, fmt.Sprintf("%v", vString), &actual.GoogleTokenSource.KubeConfig.Timeout)
+				testDecodeJson_Config(t, fmt.Sprintf("%v", vString), &actual.GoogleTokenSource.KubeClientConfig.Timeout)
 
 			} else {
 				assert.FailNow(t, err.Error())

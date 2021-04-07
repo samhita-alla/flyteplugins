@@ -202,7 +202,7 @@ func newGKETokenSource(kubeClient kubernetes.Interface, config TokenSourceConfig
 }
 
 func NewGKETokenSource(config TokenSourceConfig) (TokenSource, error) {
-	kubeClient, err := getKubeClient(config.KubeConfigPath, config.KubeConfig)
+	kubeClient, err := getKubeClient(config.KubeConfigPath, config.KubeClientConfig)
 
 	if err != nil {
 		return gkeTokenSource{}, err

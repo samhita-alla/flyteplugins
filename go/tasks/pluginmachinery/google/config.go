@@ -24,8 +24,8 @@ type TokenSourceConfig struct {
 	// KubeConfigPath is path to the Kubernetes client config file
 	KubeConfigPath string `json:"kubeConfig" pflag:",Path to Kubernetes client config file."`
 
-	// KubeConfig is configuration to the Kubernetes client
-	KubeConfig KubeClientConfig `json:"kubeClientConfig" pflag:",Configuration to control the Kubernetes client"`
+	// KubeClientConfig is configuration to the Kubernetes client
+	KubeClientConfig KubeClientConfig `json:"kubeClientConfig" pflag:",Configuration to control the Kubernetes client"`
 }
 
 type KubeClientConfig struct {
@@ -44,7 +44,7 @@ type KubeClientConfig struct {
 func GetDefaultConfig() TokenSourceConfig {
 	return TokenSourceConfig{
 		Type: "default",
-		KubeConfig: KubeClientConfig{
+		KubeClientConfig: KubeClientConfig{
 			QPS:     5,
 			Burst:   10,
 			Timeout: config.Duration{Duration: 0},
