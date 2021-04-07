@@ -19,7 +19,7 @@ import (
 )
 
 func TestEndToEnd(t *testing.T) {
-	server := newFakeServer()
+	server := newFakeServer(t)
 	defer server.Close()
 
 	header := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9"
@@ -51,34 +51,37 @@ func TestEndToEnd(t *testing.T) {
 
 	ctx := context.TODO()
 
-	t.Run("", func(t *testing.T) {
-		gkeTokenSource := newGKETokenSource(kubeClient, TokenSourceConfig{})
-		gkeTokenSource.federatedTokenEndpoint = server.URL
-		gkeTokenSource.iamCredentialsEndpoint = server.URL
+	gkeTokenSource := newGKETokenSource(kubeClient, TokenSourceConfig{})
+	gkeTokenSource.federatedTokenEndpoint = server.URL
+	gkeTokenSource.iamCredentialsEndpoint = server.URL
 
-		tokenSource, err := gkeTokenSource.GetTokenSource(ctx, Identity{
-			K8sNamespace:      "namespace",
-			K8sServiceAccount: "name",
-		})
-
-		assert.NoError(t, err)
-
-		token, err := tokenSource.Token()
-
-		assert.NoError(t, err)
-		assert.Equal(t, "google-access-token", token.AccessToken)
+	tokenSource, err := gkeTokenSource.GetTokenSource(ctx, Identity{
+		K8sNamespace:      "namespace",
+		K8sServiceAccount: "name",
 	})
+
+	assert.NoError(t, err)
+
+	token, err := tokenSource.Token()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "google-access-token", token.AccessToken)
 }
 
-func newFakeServer() *httptest.Server {
+func newFakeServer(t *testing.T) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.URL.Path == "/v1/identitybindingtoken" && request.Method == "POST" {
 			writer.WriteHeader(200)
 			response := federatedTokenResponse{
 				AccessToken: "federated-access-token",
 			}
-			bytes, _ := json.Marshal(response)
-			_, _ = writer.Write(bytes)
+
+			bytes, err := json.Marshal(response)
+			assert.NoError(t, err)
+
+			_, err = writer.Write(bytes)
+			assert.NoError(t, err)
+
 			return
 		}
 
@@ -94,8 +97,13 @@ func newFakeServer() *httptest.Server {
 
 			writer.WriteHeader(200)
 			response := iamcredentials.GenerateAccessTokenResponse{AccessToken: "google-access-token"}
-			bytes, _ := json.Marshal(response)
-			_, _ = writer.Write(bytes)
+
+			bytes, err := json.Marshal(response)
+			assert.NoError(t, err)
+
+			_, err = writer.Write(bytes)
+			assert.NoError(t, err)
+
 			return
 		}
 
