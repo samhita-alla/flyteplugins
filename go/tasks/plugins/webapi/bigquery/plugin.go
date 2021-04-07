@@ -257,7 +257,7 @@ func (p Plugin) Status(_ context.Context, tCtx webapi.StatusContext) (phase core
 
 	switch resource.Status.State {
 	case "PENDING":
-		return core.PhaseInfoRunning(version, taskInfo), nil
+		return core.PhaseInfoQueuedWithTaskInfo(version, "Query is PENDING", taskInfo), nil
 
 	case "RUNNING":
 		return core.PhaseInfoRunning(version, taskInfo), nil
