@@ -44,6 +44,9 @@ type StsRequest struct {
 	// IdentityNamespace Workload identity namespace, e.g. [project_id].svc.id.goog
 	IdentityNamespace string
 
+	// GKEClusterURL is URL to GKE cluster, e.g. https://container.googleapis.com/v1/projects/<project>/locations/<location>/clusters/<cluster>
+	GKEClusterURL string
+
 	federatedTokenEndpoint string // only for testing
 	iamCredentialsEndpoint string // only for testing
 }
@@ -88,17 +91,25 @@ type federatedTokenResponse struct {
 }
 
 func constructFederatedTokenRequest(ctx context.Context, request StsRequest) (*http.Request, error) {
-	iss, err := getIss(request.SubjectToken)
+	var gkeClusterURL = request.GKEClusterURL
 
-	if err != nil {
-		return nil, errors.Wrapf(err, "can't get iss from subject token")
+	if gkeClusterURL == "" {
+		logger.Infof(ctx, "GKEClusterURL isn't set, falling back to 'iss' field in JWT token")
+
+		iss, err := getIss(request.SubjectToken)
+
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't get iss from subject token")
+		}
+
+		if iss == "" {
+			return nil, errors.New("issued federated token doesn't have 'iss' in payload")
+		}
+
+		gkeClusterURL = iss
 	}
 
-	if iss == "" {
-		return nil, errors.New("issued federated token doesn't have 'iss' in payload")
-	}
-
-	audience := fmt.Sprintf("identitynamespace:%s:%s", request.IdentityNamespace, iss)
+	audience := fmt.Sprintf("identitynamespace:%s:%s", request.IdentityNamespace, gkeClusterURL)
 	scope := strings.Join(request.Scope, ",")
 
 	query := map[string]string{
