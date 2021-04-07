@@ -483,11 +483,13 @@ func NewPlugin(cfg *Config, metricScope promutils.Scope) (*Plugin, error) {
 	}, nil
 }
 
-func newBigQueryJobTaskPlugin(cfg *Config) webapi.PluginEntry {
+func newBigQueryJobTaskPlugin() webapi.PluginEntry {
 	return webapi.PluginEntry{
 		ID:                 "bigquery",
 		SupportedTaskTypes: []core.TaskType{bigqueryQueryJobTask},
 		PluginLoader: func(ctx context.Context, iCtx webapi.PluginSetupContext) (webapi.AsyncPlugin, error) {
+			cfg := GetConfig()
+
 			return NewPlugin(cfg, iCtx.MetricsScope())
 		},
 	}
@@ -497,7 +499,5 @@ func init() {
 	gob.Register(ResourceMetaWrapper{})
 	gob.Register(ResourceWrapper{})
 
-	cfg := GetConfig()
-
-	pluginmachinery.PluginRegistry().RegisterRemotePlugin(newBigQueryJobTaskPlugin(cfg))
+	pluginmachinery.PluginRegistry().RegisterRemotePlugin(newBigQueryJobTaskPlugin())
 }
