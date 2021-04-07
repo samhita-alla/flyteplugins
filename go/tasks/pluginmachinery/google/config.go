@@ -47,7 +47,7 @@ func GetDefaultConfig() TokenSourceConfig {
 		KubeClientConfig: KubeClientConfig{
 			QPS:     5,
 			Burst:   10,
-			Timeout: config.Duration{Duration: 0},
+			Timeout: config.Duration{Duration: 30},
 		},
 	}
 }
